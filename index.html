@@ -117,6 +117,9 @@ html, body {
 #death.hide { display: none; }
 #death .card { margin: auto; text-align: center; }
 #death .sub { margin-left: auto; margin-right: auto; }
+#tint { position: fixed; inset: 0; pointer-events: none; display: none; }
+#burn { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(255, 120, 0, 0) 40%, rgba(255, 110, 0, 0.6) 100%); }
+#airbar { position: absolute; right: 0; bottom: 24px; display: flex; gap: 1px; }
 
 #overlay {
   position: fixed; inset: 0;
@@ -205,9 +208,11 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 <div id="info"></div>
 <div id="hint"></div>
 <div id="hotbar"></div>
-<div id="vitals"><div id="hearts"></div><div id="foodbar"></div></div>
+<div id="vitals"><div id="hearts"></div><div id="foodbar"></div><div id="airbar"></div></div>
 <div id="eatbar"><i></i></div>
 <div id="hurt"></div>
+<div id="tint"></div>
+<div id="burn"></div>
 
 <div id="overlay">
   <div class="card">
@@ -221,6 +226,8 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
       <dt>Left click</dt><dd>Break a block (hold to mine in survival)</dd>
       <dt>Right click</dt><dd>Place a block, or open a crafting table</dd>
       <dt>Hold right click</dt><dd>Eat food when you are hungry</dd>
+      <dt>Bucket</dt><dd>Right click water or lava to scoop it, or to pour it out</dd>
+      <dt>T</dt><dd>Skip ahead in time (creative)</dd>
       <dt>1 to 0</dt><dd>Choose a slot (or scroll)</dd>
       <dt>E</dt><dd>Inventory and crafting</dd>
       <dt>M</dt><dd>Switch creative and survival</dd>
@@ -273,6 +280,7 @@ const $ = (id) => document.getElementById(id);
 const overlay = $('overlay'), playBtn = $('play'), statusEl = $('status'), newBtn = $('newworld');
 const infoEl = $('info'), hintEl = $('hint'), hotbarEl = $('hotbar'), canvas = $('view');
 const vitalsEl = $('vitals'), eatBarEl = $('eatbar'), hurtEl = $('hurt');
+const tintEl = $('tint'), burnEl = $('burn'), airBarEl = $('airbar');
 const deathEl = $('death'), deathMsgEl = $('deathmsg'), respawnBtn = $('respawn');
 
 if (typeof THREE === 'undefined') {
@@ -282,11 +290,13 @@ if (typeof THREE === 'undefined') {
 }
 
 /* ---------------------------------------------------------------- constants */
-const CS = 16, H = 64, NT = 37, TS = 16, EPS = 0.0008, LEAVES = 7;
+const CS = 16, H = 64, NT = 45, TS = 16, EPS = 0.0008, LEAVES = 7;
 const HOT = 10, INV = 30, TOTAL = HOT + INV, STACK = 64;
+const WATER = 19, LAVA = 20, OBSIDIAN = 21, SNOW = 22, ICE = 23, SEA = 20, LAVA_Y = 6, GEN = 3;
+const isFluid = (id) => id === WATER || id === LAVA;
 const NAMES = ['Air', 'Grass', 'Dirt', 'Stone', 'Cobblestone', 'Planks', 'Log', 'Leaves', 'Sand', 'Glass', 'Log', 'Log',
-  'Stone Bricks', 'Bricks', 'Coal Ore', 'Iron Ore', 'Diamond Ore', 'Crafting Table', 'Bedrock'];
-const TRANSP = [0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  'Stone Bricks', 'Bricks', 'Coal Ore', 'Iron Ore', 'Diamond Ore', 'Crafting Table', 'Bedrock', 'Water', 'Lava', 'Obsidian', 'Snow', 'Ice'];
+const TRANSP = [0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0];
 /* f = tile for each face: +x, -x, +y, -y, +z, -z */
 const mk = (top, side, bottom) => ({ f: [side, side, top, bottom, side, side] });
 const DEFS = [
@@ -299,7 +309,9 @@ const DEFS = [
   mk(13, 13, 13),                  /* red bricks */
   mk(14, 14, 14), mk(15, 15, 15), mk(16, 16, 16),   /* coal, iron, diamond ore */
   { f: [18, 18, 17, 5, 18, 18] },  /* crafting table */
-  mk(19, 19, 19)                   /* bedrock */
+  mk(19, 19, 19),                  /* bedrock */
+  mk(40, 40, 40), mk(41, 41, 41), mk(42, 42, 42),   /* water, lava, obsidian */
+  mk(43, 43, 43), mk(44, 44, 44)                    /* snow, ice */
 ];
 
 /* items: 100 to 103 are materials, 110 to 121 are tools (type * 4 + tier) */
@@ -312,7 +324,8 @@ const TIERS = [
 const TOOL_TYPES = ['pick', 'axe', 'shovel'], TOOL_NAMES = ['Pickaxe', 'Axe', 'Shovel'], TOOL_BASE = 110;
 const ITEM_INFO = {
   100: { name: 'Stick', tile: 20 }, 101: { name: 'Coal', tile: 21 },
-  102: { name: 'Iron Ingot', tile: 22 }, 103: { name: 'Diamond', tile: 23 }, 104: { name: 'Apple', tile: 36 }
+  102: { name: 'Iron Ingot', tile: 22 }, 103: { name: 'Diamond', tile: 23 }, 104: { name: 'Apple', tile: 36 }, 105: { name: 'Bucket', tile: 37 },
+  106: { name: 'Water Bucket', tile: 38 }, 107: { name: 'Lava Bucket', tile: 39 }
 };
 for (let t = 0; t < 3; t++) for (let r = 0; r < 4; r++) {
   ITEM_INFO[TOOL_BASE + t * 4 + r] = { name: TIERS[r].name + ' ' + TOOL_NAMES[t], tile: 24 + t * 4 + r };
@@ -324,13 +337,13 @@ function toolOf(st) {
   return { type: TOOL_TYPES[(k / 4) | 0], tier: k % 4 };
 }
 const toolMax = (id) => TIERS[(id - TOOL_BASE) % 4].dur;
-const stackMax = (id) => isTool(id) ? 1 : STACK;
+const stackMax = (id) => (isTool(id) || id === 106 || id === 107) ? 1 : (id === 105 ? 16 : STACK);
 const itemName = (id) => id < 100 ? NAMES[id] : ITEM_INFO[id].name;
 const itemTile = (id) => id < 100 ? DEFS[id].f[0] : ITEM_INFO[id].tile;
-const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17];
-const PALETTE = PLACEABLE.concat([100, 101, 102, 103, 104]);
+const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23];
+const PALETTE = PLACEABLE.concat([100, 101, 102, 103, 104, 105, 106, 107]);
 for (let i = 0; i < 12; i++) PALETTE.push(TOOL_BASE + i);
-const validItem = (id) => Number.isInteger(id) && (PLACEABLE.indexOf(id) >= 0 || (id >= 100 && id <= 104) || isTool(id));
+const validItem = (id) => Number.isInteger(id) && (PLACEABLE.indexOf(id) >= 0 || (id >= 100 && id <= 107) || isTool(id));
 function makeStack(id, n) { const s = { id: id, n: n }; if (isTool(id)) s.d = toolMax(id); return s; }
 /* food restores hunger points (20 = full bar) and saturation */
 const FOOD = { 104: { food: 4, sat: 2.4 } };
@@ -342,6 +355,7 @@ bi(1, 0.6, 'shovel', -1); bi(2, 0.5, 'shovel', -1); bi(3, 1.5, 'pick', 0); bi(4,
 bi(5, 2, 'axe', -1); bi(6, 2, 'axe', -1); bi(7, 0.2, null, -1); bi(8, 0.5, 'shovel', -1);
 bi(9, 0.3, null, -1); bi(12, 1.5, 'pick', 0); bi(13, 2, 'pick', 0); bi(14, 3, 'pick', 0);
 bi(15, 3, 'pick', 1); bi(16, 3, 'pick', 2); bi(17, 2.5, 'axe', -1); bi(18, Infinity, null, 0);
+bi(19, Infinity, null, 0); bi(20, Infinity, null, 0); bi(21, 50, 'pick', 3); bi(22, 0.2, 'shovel', -1); bi(23, 0.5, 'pick', -1);
 const binfo = (id) => BINFO[(id === 10 || id === 11) ? 6 : id];
 /* what a block turns into when you mine it (no furnace yet, so iron ore gives ingots) */
 function dropOf(id) {
@@ -380,6 +394,7 @@ TIERS.forEach((tr, r) => {
   shaped([[M, M], [M, S], [0, S]], TOOL_BASE + 4 + r, 1);
   shaped([[M], [S], [S]], TOOL_BASE + 8 + r, 1);
 });
+shaped([[102, 0, 102], [0, 102, 0]], 105, 1);    /* iron bucket */
 function sameShape(a, b) {
   if (a.length !== b.length || a[0].length !== b[0].length) return false;
   for (let r = 0; r < a.length; r++) for (let c = 0; c < a[0].length; c++) if (a[r][c] !== b[r][c]) return false;
@@ -413,8 +428,9 @@ function matchRecipe(grid, size) {
 const SAVE_KEY = 'blockfield-save-v1';
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { saved = null; }
-const seed = (saved && typeof saved.seed === 'number') ? saved.seed : (Math.random() * 2147483647) | 0;
-const edits = (saved && saved.edits && typeof saved.edits === 'object') ? saved.edits : {};
+const sameGen = !!(saved && saved.gen === GEN);
+const seed = (sameGen && typeof saved.seed === 'number') ? saved.seed : (Math.random() * 2147483647) | 0;
+const edits = (sameGen && saved.edits && typeof saved.edits === 'object') ? saved.edits : {};
 
 /* -------------------------------------------------------------------- noise */
 function mulberry32(a) {
@@ -489,7 +505,16 @@ const ART = {
   diamond: ['................', '................', '................', '.....DDDDDD.....', '....DCCWWCCD....', '...DCCWWCCCCD...', '..DCCCCCCCCCCD..', '..DDDDDDDDDDDD..', '...DCCCCCCCCD...', '....DCCCCCCD....', '.....DCCCCD.....', '......DCCD......', '.......DD.......', '................', '................', '................']
 };
 ART.apple = ['................', '........g.......', '.......gg.......', '.......h........', '....RRRhRRR.....', '...RRRRRRRRR....', '..RRwwRRRRRRR...', '..RRwRRRRRRRR...', '..RRRRRRRRRRR...', '..RRRRRRRRRRR...', '..dRRRRRRRRRd...', '...dRRRRRRRd....', '....ddRRRdd.....', '.....ddddd......', '................', '................'];
-const ART_COL = { H: [150, 110, 60], h: [104, 76, 40], K: [48, 48, 52], k: [78, 78, 86], I: [214, 214, 214], W: [244, 244, 244], J: [150, 150, 156], C: [92, 226, 218], D: [34, 150, 168], R: [200, 40, 36], d: [140, 24, 24], w: [255, 160, 150], g: [72, 142, 52] };
+ART.bucket = ['................', '................', '....BBBBBBBB....', '...BQ......QB...', '..BQ........QB..', '..BQQQQQQQQQQB..', '..BQccccccccQB..', '...BNNNNNNNNB...', '...BNNNNNNNNB...', '...BNNNNNNNNB...', '....BNNNNNNB....', '....BNNNNNNB....', '....BNNNNNNB....', '.....BBBBBB.....', '................', '................'];
+function paintBucket(tile, fill) {
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const ch = ART.bucket[y].charAt(x);
+    if (ch === '.') continue;
+    const c = ch === 'c' ? fill : ART_COL[ch];
+    px(tile, x, y, c[0], c[1], c[2]);
+  }
+}
+const ART_COL = { H: [150, 110, 60], h: [104, 76, 40], K: [48, 48, 52], k: [78, 78, 86], I: [214, 214, 214], W: [244, 244, 244], J: [150, 150, 156], C: [92, 226, 218], D: [34, 150, 168], R: [200, 40, 36], d: [140, 24, 24], w: [255, 160, 150], g: [72, 142, 52], B: [70, 70, 78], N: [170, 170, 178], Q: [215, 215, 222] };
 function paintArt(tile, rows, tier) {
   for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
     const ch = rows[y].charAt(x);
@@ -616,6 +641,23 @@ function paintArt(tile, rows, tier) {
   /* item icons */
   paintArt(20, ART.stick); paintArt(21, ART.coal); paintArt(22, ART.ingot); paintArt(23, ART.diamond); paintArt(36, ART.apple);
   for (let r = 0; r < 4; r++) { paintArt(24 + r, ART.pick, r); paintArt(28 + r, ART.axe, r); paintArt(32 + r, ART.shovel, r); }
+  paintBucket(37, [58, 58, 66]); paintBucket(38, [60, 120, 224]); paintBucket(39, [244, 112, 20]);
+  /* water 40, lava 41, obsidian 42, snow 43, ice 44 */
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    let v = n(10); const w = Math.sin((x + y * 0.6) * 1.1) * 6;
+    px(40, x, y, 46 + v + w * 0.5, 100 + v + w, 196 + v);
+    let hh = Math.imul(x >> 1, 374761393) ^ Math.imul(y >> 1, 668265263);
+    hh = Math.imul(hh ^ (hh >>> 13), 1274126177); hh ^= hh >>> 16;
+    const cell = (hh >>> 0) % 5;
+    const lc = cell === 0 ? [255, 196, 56] : (cell === 1 ? [255, 150, 30] : (cell === 3 ? [150, 36, 10] : [222, 96, 18]));
+    v = n(14); px(41, x, y, lc[0] + v, lc[1] + v, lc[2] + v * 0.4);
+    v = n(8);
+    if (rnd() < 0.12) px(42, x, y, 70 + v, 36 + v, 110 + v); else px(42, x, y, 24 + v, 12 + v * 0.6, 40 + v);
+    v = n(5);
+    if (rnd() < 0.08) px(43, x, y, 222, 232, 246); else px(43, x, y, 244 + v, 247 + v, 252 + v);
+    v = n(8);
+    if ((x + y) % 7 === 0) px(44, x, y, 226, 242, 252); else px(44, x, y, 168 + v, 212 + v, 244 + v);
+  }
 })();
 
 /* ------------------------------------------------------------------- three */
@@ -641,6 +683,8 @@ tex.magFilter = THREE.NearestFilter;
 tex.minFilter = THREE.NearestFilter;
 tex.generateMipmaps = false;
 const material = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, alphaTest: 0.5 });
+const waterMat = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide });
+const lavaMat = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true });
 
 const highlight = new THREE.LineSegments(
   new THREE.EdgesGeometry(new THREE.BoxGeometry(1.005, 1.005, 1.005)),
@@ -677,6 +721,64 @@ const crackMesh = new THREE.Mesh(new THREE.BoxGeometry(1.01, 1.01, 1.01), crackM
 crackMesh.visible = false;
 scene.add(crackMesh);
 
+/* sky: sun, moon and stars follow the camera, and the whole world dims at night */
+const sunMesh = new THREE.Mesh(new THREE.PlaneGeometry(64, 64), new THREE.MeshBasicMaterial({ color: 0xfff1b0, fog: false, depthWrite: false }));
+const moonMesh = new THREE.Mesh(new THREE.PlaneGeometry(44, 44), new THREE.MeshBasicMaterial({ color: 0xdde5f4, fog: false, depthWrite: false }));
+scene.add(sunMesh); scene.add(moonMesh);
+const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 2, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false });
+const stars = new THREE.Points(new THREE.BufferGeometry(), starMat);
+(function makeStars() {
+  const r = mulberry32(2024), pts = new Float32Array(450 * 3);
+  for (let i = 0; i < 450; i++) {
+    const u = r() * 2 - 1, a = r() * Math.PI * 2, s = Math.sqrt(1 - u * u);
+    pts[i * 3] = Math.cos(a) * s * 400; pts[i * 3 + 1] = u * 400; pts[i * 3 + 2] = Math.sin(a) * s * 400;
+  }
+  stars.geometry.setAttribute('position', new THREE.BufferAttribute(pts, 3));
+})();
+stars.frustumCulled = false;
+scene.add(stars);
+
+const DAY_LEN = 600;
+let worldTime = (saved && Number.isFinite(saved.time)) ? saved.time : DAY_LEN * 0.06;
+const SKY_DAY = [0.549, 0.753, 0.933], SKY_NIGHT = [0.02, 0.035, 0.1], SKY_DUSK = [0.9, 0.52, 0.3];
+let daylight = 1, sunH = 1, envMode = 0;
+function smoothstep(a, b, v) { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); }
+function clockStr() {
+  const hrs = (((worldTime / DAY_LEN) % 1) * 24 + 6) % 24;
+  const hh = Math.floor(hrs), mm = Math.floor((hrs - hh) * 60);
+  return (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm;
+}
+function updateSky(headId) {
+  const ang = ((worldTime / DAY_LEN) % 1) * Math.PI * 2;
+  sunH = Math.sin(ang);
+  daylight = smoothstep(-0.12, 0.3, sunH);
+  const dusk = Math.max(0, 1 - Math.abs(sunH + 0.02) / 0.28) * 0.55;
+  let r = lerp(SKY_NIGHT[0], SKY_DAY[0], daylight), g = lerp(SKY_NIGHT[1], SKY_DAY[1], daylight), b = lerp(SKY_NIGHT[2], SKY_DAY[2], daylight);
+  r = lerp(r, SKY_DUSK[0], dusk); g = lerp(g, SKY_DUSK[1], dusk); b = lerp(b, SKY_DUSK[2], dusk);
+  const B = 0.2 + 0.8 * daylight, tr = B * (0.78 + 0.22 * daylight), tg = B * (0.85 + 0.15 * daylight);
+  material.color.setRGB(tr, tg, B); waterMat.color.setRGB(tr, tg, B);
+  envMode = headId === WATER ? 1 : (headId === LAVA ? 2 : 0);
+  let near, far;
+  if (envMode === 1) {
+    const k = 0.3 + 0.7 * daylight; r = 0.09 * k; g = 0.26 * k; b = 0.58 * k; near = 0.5; far = 22;
+    tintEl.style.display = 'block'; tintEl.style.background = 'rgba(20, 70, 170, 0.28)';
+  } else if (envMode === 2) {
+    r = 0.8; g = 0.28; b = 0.04; near = 0.05; far = 2.6;
+    tintEl.style.display = 'block'; tintEl.style.background = 'rgba(230, 80, 10, 0.55)';
+  } else {
+    far = R * CS - 4; near = far * 0.55; tintEl.style.display = 'none';
+  }
+  scene.background.setRGB(r, g, b);
+  scene.fog.color.setRGB(r, g, b); scene.fog.near = near; scene.fog.far = far;
+  const cx = camera.position.x, cy = camera.position.y, cz = camera.position.z, open = envMode === 0;
+  const sl = Math.hypot(Math.cos(ang), Math.sin(ang), 0.25);
+  const sx = Math.cos(ang) / sl * 350, sy = Math.sin(ang) / sl * 350, sz = 0.25 / sl * 350;
+  sunMesh.position.set(cx + sx, cy + sy, cz + sz); sunMesh.lookAt(camera.position); sunMesh.visible = open && sunH > -0.05;
+  moonMesh.position.set(cx - sx, cy - sy, cz - sz); moonMesh.lookAt(camera.position); moonMesh.visible = open && sunH < 0.05;
+  starMat.opacity = Math.max(0, 1 - daylight * 3); stars.visible = open && starMat.opacity > 0.02;
+  stars.position.set(cx, cy, cz); stars.rotation.z = ang;
+}
+
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -709,24 +811,41 @@ function oreBlob(data, rnd, id, x, y, z, size) {
 function genChunk(cx, cz) {
   const data = new Uint8Array(CS * CS * H);
   let maxY = 0;
-  const desert = new Uint8Array(256), hts = new Int16Array(256);
+  /* biomes: 0 plains, 1 forest, 2 desert, 3 snowy */
+  const bio = new Uint8Array(256), hts = new Int16Array(256);
   for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
-    const wx = cx * CS + x, wz = cz * CS + z;
+    const wx = cx * CS + x, wz = cz * CS + z, ci = x + z * 16;
     const base = fbm(wx * 0.008, wz * 0.008, 4);
-    let h = 24 + base * 14 + (base > 0 ? base * base * 22 : 0) + fbm(wx * 0.035, wz * 0.035, 2) * 3.5;
+    let h = 24 + base * 30 + (base > 0 ? base * base * 80 : 0) + fbm(wx * 0.035, wz * 0.035, 2) * 3.5;
     h = Math.max(3, Math.min(H - 14, Math.floor(h)));
-    const des = fbm(wx * 0.005 + 500, wz * 0.005 + 500, 2) > 0.22 ? 1 : 0;
-    desert[x + z * 16] = des; hts[x + z * 16] = h;
+    let b = 0;
+    if (fbm(wx * 0.005 + 500, wz * 0.005 + 500, 2) > 0.22) b = 2;
+    else if (fbm(wx * 0.0035 + 900, wz * 0.0035 + 900, 2) < -0.26) b = 3;
+    else if (fbm(wx * 0.0045 + 300, wz * 0.0045 + 300, 2) > 0.1) b = 1;
+    bio[ci] = b; hts[ci] = h;
+    const under = h < SEA;
+    let topId, fillId;
+    if (under) { topId = h >= SEA - 4 ? 8 : 2; fillId = topId; }
+    else if (h >= 46) { topId = SNOW; fillId = 3; }
+    else if (h >= 38) { topId = 3; fillId = 3; }
+    else if (b === 2 || h <= SEA + 1) { topId = 8; fillId = 8; }
+    else if (b === 3) { topId = SNOW; fillId = 2; }
+    else { topId = 1; fillId = 2; }
     for (let y = 0; y <= h; y++) {
       let id;
       if (y === 0) id = 18;
-      else if (y === h) id = des ? 8 : 1;
-      else if (y >= h - 3) id = des ? 8 : 2;
+      else if (y === h) id = topId;
+      else if (y >= h - 3) id = fillId;
       else id = 3;
       data[x + (z << 4) + (y << 8)] = id;
     }
-    for (let y = 2; y <= h; y++) if (caveAt(wx, y, wz)) data[x + (z << 4) + (y << 8)] = 0;
-    if (h > maxY) maxY = h;
+    if (under) for (let y = h + 1; y < SEA; y++) data[x + (z << 4) + (y << 8)] = (b === 3 && y === SEA - 1) ? ICE : WATER;
+    for (let y = 2; y <= h; y++) {
+      if (h < SEA + 2 && y > h - 4) continue;   /* keep lake and ocean floors sealed */
+      if (caveAt(wx, y, wz)) data[x + (z << 4) + (y << 8)] = y <= LAVA_Y ? LAVA : 0;
+    }
+    const topY = under ? SEA - 1 : h;
+    if (topY > maxY) maxY = topY;
   }
   const rnd = mulberry32(Math.imul(cx, 73856093) ^ Math.imul(cz, 19349663) ^ Math.imul(seed, 83492791));
   for (const o of OREGEN) for (let t = 0; t < o[1]; t++) {
@@ -734,8 +853,29 @@ function genChunk(cx, cz) {
     oreBlob(data, rnd, o[0], x, y, z, o[2]);
   }
   for (let z = 2; z <= 13; z++) for (let x = 2; x <= 13; x++) {
-    const i = x + z * 16, wx = cx * CS + x, wz = cz * CS + z, h = hts[i];
-    if (desert[i] || h < 18 || h > 44 || data[x + (z << 4) + (h << 8)] !== 1 || hash2(wx, wz) >= 0.011) continue;
+    const i = x + z * 16, wx = cx * CS + x, wz = cz * CS + z, h = hts[i], b = bio[i];
+    if (b === 2 || h < SEA + 1 || h > 44) continue;
+    const ground = data[x + (z << 4) + (h << 8)];
+    let p;
+    if (b === 3) { if (ground !== SNOW) continue; p = 0.012; }
+    else { if (ground !== 1) continue; p = b === 1 ? 0.03 : 0.006; }
+    if (hash2(wx, wz) >= p) continue;
+    if (b === 3) {
+      /* spruce: tall trunk with a cone of leaves */
+      const th = 6 + ((hash2(wx + 7, wz + 13) * 3) | 0);
+      for (let dy = 2; dy <= th + 1; dy++) {
+        const r = dy === th + 1 ? 0 : (dy >= th ? 1 : (((th - dy) & 1) ? 1 : 2));
+        for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+          if (r === 2 && Math.abs(dx) === 2 && Math.abs(dz) === 2) continue;
+          const yy = h + dy; if (yy >= H) continue;
+          const k = (x + dx) + ((z + dz) << 4) + (yy << 8);
+          if (data[k] === 0) data[k] = LEAVES;
+          if (yy > maxY) maxY = yy;
+        }
+      }
+      for (let dy = 1; dy <= th; dy++) data[x + (z << 4) + ((h + dy) << 8)] = 6;
+      continue;
+    }
     const th = 4 + ((hash2(wx + 7, wz + 13) * 2) | 0);
     for (let dy = th - 2; dy <= th + 1; dy++) {
       const r = dy >= th ? 1 : 2;
@@ -754,7 +894,7 @@ function genChunk(cx, cz) {
     const idx = +k; data[idx] = e[k];
     if (e[k] && (idx >> 8) > maxY) maxY = idx >> 8;
   }
-  return { cx: cx, cz: cz, data: data, maxY: maxY, mesh: null, built: false };
+  return { cx: cx, cz: cz, data: data, maxY: maxY, meshes: [], built: false };
 }
 function getChunk(cx, cz) {
   const k = key(cx, cz); let c = chunks.get(k);
@@ -805,10 +945,12 @@ FACES.forEach((f) => {
 });
 const AOV = [0.5, 0.68, 0.84, 1];
 
-function unload(c) {
-  if (c.mesh) { scene.remove(c.mesh); c.mesh.geometry.dispose(); c.mesh = null; }
-  c.built = false;
+function mkGroup() { return { P: [], C: [], U: [], I: [], vc: 0 }; }
+function disposeMeshes(c) {
+  for (const m of c.meshes) { scene.remove(m); m.geometry.dispose(); }
+  c.meshes = [];
 }
+function unload(c) { disposeMeshes(c); c.built = false; }
 
 function meshChunk(c) {
   const nb = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
@@ -820,50 +962,75 @@ function meshChunk(c) {
     return nb[b][a][((x + 16) & 15) + (((z + 16) & 15) << 4) + (y << 8)];
   };
   const solid = (x, y, z) => { const id = get(x, y, z); return id !== 0 && !TRANSP[id]; };
-  const d = c.data, P = [], C = [], U = [], I = [];
-  let vc = 0;
-  const top = Math.min(H - 1, c.maxY);
-  for (let y = 0; y <= top; y++) for (let z = 0; z < 16; z++) for (let x = 0; x < 16; x++) {
+  /* skylight: height of the first opaque block in every column around this chunk */
+  const colTop = new Int16Array(18 * 18);
+  for (let tz = -1; tz <= 16; tz++) for (let tx = -1; tx <= 16; tx++) {
+    const arr = nb[tz < 0 ? 0 : (tz > 15 ? 2 : 1)][tx < 0 ? 0 : (tx > 15 ? 2 : 1)];
+    const base = ((tx + 16) & 15) + (((tz + 16) & 15) << 4);
+    let ty = H - 1;
+    while (ty >= 0) { const id = arr[base + (ty << 8)]; if (id !== 0 && !TRANSP[id]) break; ty--; }
+    colTop[(tz + 1) * 18 + (tx + 1)] = ty;
+  }
+  const sky = (x, y, z) => {
+    const t = colTop[(z + 1) * 18 + (x + 1)];
+    return y > t ? 1 : 0.55 + 0.45 * Math.max(0, 1 - (t - y) / 7);
+  };
+  const gm = mkGroup(), gw = mkGroup(), gl = mkGroup();
+  const d = c.data, ymax = Math.min(H - 1, Math.max(c.maxY, 0));
+  for (let y = 0; y <= ymax; y++) for (let z = 0; z < 16; z++) for (let x = 0; x < 16; x++) {
     const id = d[x + (z << 4) + (y << 8)];
     if (!id) continue;
     const def = DEFS[id];
+    const isW = id === WATER, isL = id === LAVA;
+    const g = isW ? gw : (isL ? gl : gm);
+    const surf = (isW && get(x, y + 1, z) !== WATER) ? 0.88 : 1;
     for (let fi = 0; fi < 6; fi++) {
       const f = FACES[fi];
-      const nid = get(x + f.n[0], y + f.n[1], z + f.n[2]);
-      if (nid !== 0 && !(TRANSP[nid] && (nid !== id || id === LEAVES))) continue;
+      const nx = x + f.n[0], ny = y + f.n[1], nz = z + f.n[2];
+      const nid = get(nx, ny, nz);
+      if (isW) { if (nid === WATER || (nid !== 0 && !TRANSP[nid])) continue; }
+      else if (nid !== 0 && !(TRANSP[nid] && (nid !== id || id === LEAVES))) continue;
       const tile = def.f[fi], u0 = tile / NT + EPS, u1 = (tile + 1) / NT - EPS;
-      const ao = [0, 0, 0, 0];
-      for (let k = 0; k < 4; k++) {
-        const o = f.ao[k];
-        const s1 = solid(x + o[0][0], y + o[0][1], z + o[0][2]) ? 1 : 0;
-        const s2 = solid(x + o[1][0], y + o[1][1], z + o[1][2]) ? 1 : 0;
-        const cr = solid(x + o[2][0], y + o[2][1], z + o[2][2]) ? 1 : 0;
-        ao[k] = (s1 && s2) ? 0 : 3 - (s1 + s2 + cr);
+      const sk = sky(nx, ny, nz);
+      const ao = [3, 3, 3, 3];
+      if (!isW && !isL) {
+        for (let k = 0; k < 4; k++) {
+          const o = f.ao[k];
+          const s1 = solid(x + o[0][0], y + o[0][1], z + o[0][2]) ? 1 : 0;
+          const s2 = solid(x + o[1][0], y + o[1][1], z + o[1][2]) ? 1 : 0;
+          const cr = solid(x + o[2][0], y + o[2][1], z + o[2][2]) ? 1 : 0;
+          ao[k] = (s1 && s2) ? 0 : 3 - (s1 + s2 + cr);
+        }
       }
       for (let k = 0; k < 4; k++) {
-        const cc = f.c[k], b = AOV[ao[k]] * f.shade;
-        P.push(x + cc[0], y + cc[1], z + cc[2]);
-        C.push(b, b, b);
-        U.push(UVS[k][0] ? u1 : u0, UVS[k][1] ? 1 - EPS : EPS);
+        const cc = f.c[k];
+        const b = isL ? 1 : (isW ? f.shade * sk : AOV[ao[k]] * f.shade * sk);
+        g.P.push(x + cc[0], y + cc[1] * surf, z + cc[2]);
+        g.C.push(b, b, b);
+        g.U.push(UVS[k][0] ? u1 : u0, UVS[k][1] ? 1 - EPS : EPS);
       }
-      if (ao[0] + ao[2] > ao[1] + ao[3]) I.push(vc, vc + 1, vc + 2, vc, vc + 2, vc + 3);
-      else I.push(vc + 1, vc + 2, vc + 3, vc + 1, vc + 3, vc);
-      vc += 4;
+      const vc = g.vc;
+      if (ao[0] + ao[2] > ao[1] + ao[3]) g.I.push(vc, vc + 1, vc + 2, vc, vc + 2, vc + 3);
+      else g.I.push(vc + 1, vc + 2, vc + 3, vc + 1, vc + 3, vc);
+      g.vc += 4;
     }
   }
-  if (c.mesh) { scene.remove(c.mesh); c.mesh.geometry.dispose(); c.mesh = null; }
+  disposeMeshes(c);
   c.built = true;
-  if (!P.length) return;
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3));
-  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(C), 3));
-  g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(U), 2));
-  g.setIndex(new THREE.BufferAttribute(new Uint32Array(I), 1));
-  g.computeBoundingSphere();
-  const m = new THREE.Mesh(g, material);
-  m.position.set(c.cx * CS, 0, c.cz * CS);
-  scene.add(m);
-  c.mesh = m;
+  const emit = (grp, mat) => {
+    if (!grp.P.length) return;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(grp.P), 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(grp.C), 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(grp.U), 2));
+    geo.setIndex(new THREE.BufferAttribute(new Uint32Array(grp.I), 1));
+    geo.computeBoundingSphere();
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(c.cx * CS, 0, c.cz * CS);
+    scene.add(m);
+    c.meshes.push(m);
+  };
+  emit(gm, material); emit(gw, waterMat); emit(gl, lavaMat);
 }
 
 /* ---------------------------------------------------------------- streaming */
@@ -916,6 +1083,8 @@ let yaw = 0, pitch = 0, changed = false;
 
 /* survival: health and hunger use Minecraft's numbers (20 points = 10 hearts, 20 points = 10 drumsticks) */
 let sprinting = false, fallPeak = 0, dead = false, hurtT = 0, eatT = 0;
+const AIR_MAX = 15;
+let inWater = false, inLava = false, headWater = false, headLava = false, air = AIR_MAX, drownT = 0, lavaT = 0.5, burnT = 0, burnTick = 0;
 const vit = { health: 20, food: 20, sat: 5, exh: 0, regenT: 0 };
 if (saved && saved.vit) {
   const v = saved.vit;
@@ -939,7 +1108,8 @@ function die(cause) {
 }
 function respawn() {
   vit.health = 20; vit.food = 20; vit.sat = 5; vit.exh = 0; vit.regenT = 0; hurtT = 0;
-  player.x = 8.5; player.z = 8.5; player.y = spawnTop() + 0.01;
+  const sp = getSpawn(); player.x = sp.x; player.y = sp.y; player.z = sp.z;
+  air = AIR_MAX; drownT = 0; lavaT = 0.5; burnT = 0; burnTick = 0;
   player.vx = 0; player.vy = 0; player.vz = 0; fallPeak = player.y;
   dead = false;
   deathEl.classList.add('hide');
@@ -971,6 +1141,25 @@ function vitalsStep(dt) {
     if (vit.regenT >= 4) { vit.regenT = 0; if (vit.health > 1) hurt(1, 'You starved to death'); }
   } else vit.regenT = 0;
 }
+/* swimming: air runs out underwater, lava hurts and sets you on fire, water puts the fire out */
+function envStep(dt) {
+  if (dead) return;
+  if (creative) { air = AIR_MAX; burnT = 0; drownT = 0; return; }
+  if (headWater) {
+    air -= dt;
+    if (air <= 0) { air = 0; drownT += dt; if (drownT >= 1) { drownT = 0; hurt(2, 'You drowned'); } }
+  } else { air = Math.min(AIR_MAX, air + dt * 8); drownT = 0; }
+  if (inLava) {
+    lavaT += dt;
+    if (lavaT >= 0.5) { lavaT = 0; hurt(4, 'You tried to swim in lava'); }
+    burnT = 6;
+  } else lavaT = 0.5;
+  if (inWater && !inLava) burnT = 0;
+  if (burnT > 0 && !dead) {
+    burnT -= dt; burnTick += dt;
+    if (burnTick >= 1) { burnTick = 0; hurt(1, 'You burned to death'); }
+  }
+}
 function eatStep(dt) {
   const st = slots[sel], f = st && FOOD[st.id];
   if (dead || creative || held !== 2 || !f || vit.food >= 20) {
@@ -994,7 +1183,8 @@ function collides(x, y, z) {
   const y0 = Math.floor(y), y1 = Math.floor(y + PH - 0.001);
   const z0 = Math.floor(z - PW), z1 = Math.floor(z + PW);
   for (let yy = y0; yy <= y1; yy++) for (let zz = z0; zz <= z1; zz++) for (let xx = x0; xx <= x1; xx++) {
-    if (getBlock(xx, yy, zz) !== 0) return true;
+    const cb = getBlock(xx, yy, zz);
+    if (cb !== 0 && cb !== WATER && cb !== LAVA) return true;
   }
   return false;
 }
@@ -1016,19 +1206,34 @@ function moveAxis(axis, dist) {
   }
   return false;
 }
-function spawnTop() {
-  const d = getChunk(0, 0).data;
-  for (let y = H - 1; y >= 0; y--) if (d[8 + (8 << 4) + (y << 8)] !== 0) return y + 1;
-  return 30;
+let spawnPt = null;
+/* look outward from the origin for dry ground to start on */
+function getSpawn() {
+  if (spawnPt) return spawnPt;
+  const good = [1, 2, 3, 8, SNOW];
+  for (let r = 0; r <= 240 && !spawnPt; r += 4) {
+    const steps = r === 0 ? 1 : Math.ceil(r * 0.8);
+    for (let k = 0; k < steps; k++) {
+      const a = k / steps * Math.PI * 2, x = Math.floor(8 + r * Math.cos(a)), z = Math.floor(8 + r * Math.sin(a));
+      let y = H - 1; while (y > 0 && getBlock(x, y, z) === 0) y--;
+      if (y >= SEA && good.indexOf(getBlock(x, y, z)) >= 0 && getBlock(x, y + 1, z) === 0 && getBlock(x, y + 2, z) === 0) {
+        spawnPt = { x: x + 0.5, y: y + 1.01, z: z + 0.5 };
+        break;
+      }
+    }
+  }
+  if (!spawnPt) spawnPt = { x: 8.5, y: 40, z: 8.5 };
+  return spawnPt;
 }
-if (saved && Array.isArray(saved.p) && saved.p.length === 3 && saved.p.every(Number.isFinite)) {
+if (sameGen && Array.isArray(saved.p) && saved.p.length === 3 && saved.p.every(Number.isFinite)) {
   player.x = saved.p[0]; player.y = saved.p[1]; player.z = saved.p[2];
   if (Number.isFinite(saved.yaw)) yaw = saved.yaw;
   if (Number.isFinite(saved.pitch)) pitch = saved.pitch;
   let guard = 0;
   while (collides(player.x, player.y, player.z) && guard++ < H) player.y += 1;
 } else {
-  player.y = spawnTop() + 0.01;
+  const sp = getSpawn();
+  player.x = sp.x; player.y = sp.y; player.z = sp.z;
 }
 
 fallPeak = player.y;
@@ -1042,12 +1247,28 @@ function updatePlayer(dt) {
   const wx = fx * cs + fz * sn, wz = -fx * sn + fz * cs;
   const shift = keys.ShiftLeft || keys.ShiftRight;
   sprinting = false;
+  const bx = Math.floor(player.x), bz = Math.floor(player.z);
+  const bodyId = getBlock(bx, Math.floor(player.y + 0.6), bz), feetId = getBlock(bx, Math.floor(player.y + 0.05), bz);
+  const eyeId = getBlock(bx, Math.floor(player.y + EYE), bz);
+  inWater = bodyId === WATER || feetId === WATER;
+  inLava = bodyId === LAVA || feetId === LAVA;
+  headWater = eyeId === WATER; headLava = eyeId === LAVA;
+  const swimming = (inWater || inLava) && !player.fly;
   if (player.fly) {
     const sp = 11, k = Math.min(1, dt * 8);
     player.vx += (wx * sp - player.vx) * k;
     player.vz += (wz * sp - player.vz) * k;
     const up = (keys.Space ? 1 : 0) - (shift ? 1 : 0);
     player.vy += (up * 9 - player.vy) * k;
+  } else if (swimming) {
+    const sp = inLava ? 1.7 : 2.9, k = Math.min(1, dt * 6);
+    player.vx += (wx * sp - player.vx) * k;
+    player.vz += (wz * sp - player.vz) * k;
+    player.vy -= (inLava ? 4 : 9) * dt;
+    player.vy *= Math.exp(-dt * (inLava ? 6 : 3.2));
+    if (keys.Space) player.vy += (inLava ? 16 : 24) * dt;
+    if (shift) player.vy -= 14 * dt;
+    player.vy = Math.max(-8, Math.min(6, player.vy));
   } else {
     const sprint = shift && (creative || vit.food > 6) && (fx !== 0 || fz !== 0);
     sprinting = sprint;
@@ -1058,25 +1279,28 @@ function updatePlayer(dt) {
     if (keys.Space && player.onGround) { player.vy = 8.6; player.onGround = false; addExhaustion(sprinting ? 0.2 : 0.05); }
   }
   const ox = player.x, oz = player.z;
-  if (moveAxis('x', player.vx * dt)) player.vx = 0;
-  if (moveAxis('z', player.vz * dt)) player.vz = 0;
+  const hitX = moveAxis('x', player.vx * dt); if (hitX) player.vx = 0;
+  const hitZ = moveAxis('z', player.vz * dt); if (hitZ) player.vz = 0;
+  /* swimming into a wall at the surface hops you up onto the ledge */
+  if (swimming && (hitX || hitZ) && keys.Space && !headWater && !headLava) player.vy = Math.max(player.vy, 6);
   if (sprinting && player.onGround) addExhaustion(0.1 * Math.hypot(player.x - ox, player.z - oz));
   const hitY = moveAxis('y', player.vy * dt);
   if (hitY) {
     if (player.vy < 0) {
-      if (!player.fly) { const drop = fallPeak - player.y; if (drop > 3) hurt(Math.ceil(drop - 3), 'You fell from a high place'); }
+      if (!player.fly && !swimming) { const drop = fallPeak - player.y; if (drop > 3) hurt(Math.ceil(drop - 3), 'You fell from a high place'); }
       player.onGround = true; fallPeak = player.y;
     } else player.onGround = false;
     player.vy = 0;
   } else {
     player.onGround = false;
-    fallPeak = player.fly ? player.y : Math.max(fallPeak, player.y);
+    fallPeak = (player.fly || swimming) ? player.y : Math.max(fallPeak, player.y);
   }
-  if (player.y < -20) { player.x = 8.5; player.z = 8.5; player.y = spawnTop() + 0.01; player.vy = 0; }
+  if (swimming) fallPeak = player.y;
+  if (player.y < -20) { const sp = getSpawn(); player.x = sp.x; player.y = sp.y; player.z = sp.z; player.vy = 0; fallPeak = player.y; }
 }
 
 /* ------------------------------------------------------------------ raycast */
-function raycast(o, dir, maxDist) {
+function raycast(o, dir, maxDist, liquids) {
   let x = Math.floor(o.x), y = Math.floor(o.y), z = Math.floor(o.z);
   const sx = Math.sign(dir.x), sy = Math.sign(dir.y), sz = Math.sign(dir.z);
   const dX = dir.x !== 0 ? Math.abs(1 / dir.x) : Infinity;
@@ -1087,7 +1311,8 @@ function raycast(o, dir, maxDist) {
   let tZ = dir.z > 0 ? (z + 1 - o.z) * dZ : dir.z < 0 ? (o.z - z) * dZ : Infinity;
   let t = 0, nx = 0, ny = 0, nz = 0;
   while (t <= maxDist) {
-    if (getBlock(x, y, z) !== 0) return { x: x, y: y, z: z, nx: nx, ny: ny, nz: nz };
+    const hb = getBlock(x, y, z);
+    if (hb !== 0 && (liquids || (hb !== WATER && hb !== LAVA))) return { x: x, y: y, z: z, nx: nx, ny: ny, nz: nz };
     if (tX < tY && tX < tZ) { x += sx; t = tX; tX += dX; nx = -sx; ny = 0; nz = 0; }
     else if (tY < tZ) { y += sy; t = tY; tY += dY; nx = 0; ny = -sy; nz = 0; }
     else { z += sz; t = tZ; tZ += dZ; nx = 0; ny = 0; nz = -sz; }
@@ -1136,16 +1361,60 @@ function mineStep(dt) {
   mine.t += dt;
   if (mine.t >= tt) { breakBlock(h.x, h.y, h.z); mine.t = 0; mine.active = false; mineCool = 0.25; }
 }
-function act(btn) {
+const NB6 = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+/* water meeting lava makes stone: lava turns to obsidian, and lava poured next to water turns to cobblestone */
+function placeFluid(x, y, z, id) {
+  const cur = getBlock(x, y, z);
+  if (id === WATER && cur === LAVA) { setBlock(x, y, z, OBSIDIAN); return; }
+  if (id === LAVA && cur === WATER) { setBlock(x, y, z, 4); return; }
+  if (id === LAVA) {
+    for (const d of NB6) if (getBlock(x + d[0], y + d[1], z + d[2]) === WATER) { setBlock(x, y, z, 4); return; }
+    setBlock(x, y, z, LAVA);
+    return;
+  }
+  setBlock(x, y, z, WATER);
+  for (const d of NB6) {
+    const nx = x + d[0], ny = y + d[1], nz = z + d[2];
+    if (getBlock(nx, ny, nz) === LAVA) setBlock(nx, ny, nz, OBSIDIAN);
+  }
+}
+function useBucket(st) {
+  camera.getWorldDirection(dirVec); eyeVec.copy(camera.position);
+  const h = raycast(eyeVec, dirVec, 5, true);
+  if (!h) return;
+  const hid = getBlock(h.x, h.y, h.z);
+  if (st.id === 105) {
+    if (!isFluid(hid)) return;
+    setBlock(h.x, h.y, h.z, 0);
+    if (!creative) {
+      const full = hid === WATER ? 106 : 107;
+      if (st.n > 1) { st.n--; addItem(full, 1); } else st.id = full;
+      invChanged();
+    }
+  } else {
+    const fluid = st.id === 106 ? WATER : LAVA;
+    let x = h.x + h.nx, y = h.y + h.ny, z = h.z + h.nz;
+    if (isFluid(hid)) { x = h.x; y = h.y; z = h.z; }
+    const cur = getBlock(x, y, z);
+    if (cur === fluid || (cur !== 0 && !isFluid(cur))) return;
+    placeFluid(x, y, z, fluid);
+    if (!creative) { st.id = 105; invChanged(); }
+  }
+}
+function act(btn, first) {
+  const st = slots[sel];
+  if (btn === 2) {
+    if (target && getBlock(target.x, target.y, target.z) === 17 && !(keys.ShiftLeft || keys.ShiftRight)) { openInventory(3); return; }
+    if (st && (st.id === 105 || st.id === 106 || st.id === 107)) { if (first) useBucket(st); return; }
+  }
   const h = target; if (!h) return;
   if (btn === 0) {
     if (creative) breakBlock(h.x, h.y, h.z);
   } else if (btn === 2) {
-    if (getBlock(h.x, h.y, h.z) === 17 && !(keys.ShiftLeft || keys.ShiftRight)) { openInventory(3); return; }
-    const st = slots[sel];
     if (!st || st.id >= 100) return;
     const bx = h.x + h.nx, by = h.y + h.ny, bz = h.z + h.nz;
-    if (getBlock(bx, by, bz) === 0 && !intersectsPlayer(bx, by, bz)) {
+    const cur = getBlock(bx, by, bz);
+    if ((cur === 0 || isFluid(cur)) && !intersectsPlayer(bx, by, bz)) {
       let id = st.id;
       if (id === 6) id = h.nx !== 0 ? 10 : (h.nz !== 0 ? 11 : 6);
       setBlock(bx, by, bz, id);
@@ -1433,6 +1702,28 @@ function layoutVitals() {
   vitalsEl.style.bottom = 'calc(' + (hotbarEl.offsetHeight + 20) + 'px + env(safe-area-inset-bottom, 0px))';
 }
 paintVitals(); layoutVitals();
+const BUBBLE = (function () {
+  const cv = document.createElement('canvas'); cv.width = 11; cv.height = 11;
+  const cx = cv.getContext('2d');
+  for (let y = 0; y < 11; y++) for (let x = 0; x < 11; x++) {
+    const d = Math.hypot(x - 5, y - 5);
+    if (d > 4.7) continue;
+    cx.fillStyle = d > 3.5 ? 'rgb(110,170,230)' : 'rgb(205,232,255)';
+    cx.fillRect(x, y, 1, 1);
+  }
+  cx.fillStyle = 'rgb(255,255,255)'; cx.fillRect(3, 3, 2, 1); cx.fillRect(3, 4, 1, 1);
+  return cv;
+})();
+const airCvs = [];
+for (let i = 9; i >= 0; i--) { const c = document.createElement('canvas'); c.width = 11; c.height = 11; airBarEl.appendChild(c); airCvs[i] = c; }
+let lastAir = -1;
+function paintAir() {
+  const n = (!creative && air < AIR_MAX - 0.01) ? Math.min(10, Math.ceil(air / 1.5)) : 0;
+  if (n === lastAir) return;
+  lastAir = n;
+  airBarEl.style.display = n > 0 ? 'flex' : 'none';
+  for (let i = 0; i < 10; i++) { const cx = airCvs[i].getContext('2d'); cx.clearRect(0, 0, 11, 11); if (i < n) cx.drawImage(BUBBLE, 0, 0); }
+}
 
 function showHint(text, ms) {
   hintEl.textContent = text; hintEl.classList.add('show');
@@ -1480,7 +1771,7 @@ document.addEventListener('mousemove', (e) => {
 document.addEventListener('mousedown', (e) => {
   if (!playing) return;
   e.preventDefault();
-  act(e.button); held = e.button; heldT = 0.25;
+  act(e.button, true); held = e.button; heldT = 0.25;
 });
 document.addEventListener('mouseup', () => { held = -1; });
 document.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -1513,6 +1804,7 @@ document.addEventListener('keydown', (e) => {
   }
   else if (e.code === 'BracketLeft') { R = Math.max(2, R - 1); applyFog(); showHint('View distance ' + R, 1000); }
   else if (e.code === 'BracketRight') { R = Math.min(9, R + 1); applyFog(); showHint('View distance ' + R, 1000); }
+  else if (e.code === 'KeyT') { if (creative) { worldTime += DAY_LEN * 0.125; showHint('Time ' + clockStr(), 1200); } else showHint('Skipping time is for creative mode', 1200); }
 });
 document.addEventListener('keyup', (e) => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; held = -1; });
@@ -1527,7 +1819,7 @@ newBtn.addEventListener('click', () => {
 function save() {
   if (dead) return;
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ seed: seed, edits: edits, p: [player.x, player.y, player.z], yaw: yaw, pitch: pitch, slots: slots, creative: creative, vit: { health: vit.health, food: vit.food, sat: vit.sat } }));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ seed: seed, edits: edits, p: [player.x, player.y, player.z], yaw: yaw, pitch: pitch, gen: GEN, time: worldTime, slots: slots, creative: creative, vit: { health: vit.health, food: vit.food, sat: vit.sat } }));
   } catch (e) {}
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
@@ -1546,6 +1838,8 @@ function frame(now) {
     updatePlayer(dt);
     if (!creative) vitalsStep(dt);
     eatStep(dt);
+    envStep(dt);
+    worldTime += dt;
     mineCool = Math.max(0, mineCool - dt);
     if (held === 0 && !creative) mineStep(dt);
     else {
@@ -1556,6 +1850,7 @@ function frame(now) {
 
   camera.position.set(player.x, player.y + EYE, player.z);
   camera.rotation.set(pitch, yaw, 0);
+  updateSky(getBlock(Math.floor(player.x), Math.floor(player.y + EYE), Math.floor(player.z)));
 
   stream();
 
@@ -1579,7 +1874,9 @@ function frame(now) {
 
   hurtT = Math.max(0, hurtT - dt);
   hurtEl.style.opacity = hurtT > 0 ? String(Math.min(1, hurtT / 0.45)) : '0';
-  if (!creative) paintVitals();
+  if (!creative) { paintVitals(); }
+  paintAir();
+  burnEl.style.opacity = (burnT > 0 && !creative) ? '0.55' : '0';
 
   renderer.render(scene, camera);
 
@@ -1588,7 +1885,7 @@ function frame(now) {
     fps = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0;
     layoutVitals();
     infoEl.textContent = player.x.toFixed(1) + '  ' + player.y.toFixed(1) + '  ' + player.z.toFixed(1) +
-      '\n' + fps + ' fps, view ' + R + (player.fly ? '\nflying' : '');
+      '\n' + fps + ' fps, view ' + R + '\n' + clockStr() + (player.fly ? '\nflying' : '');
   }
   saveT += dt;
   if (saveT > 6) { saveT = 0; if (playing && changed) { changed = false; save(); } }
