@@ -298,7 +298,7 @@ if (typeof THREE === 'undefined') {
 }
 
 /* ---------------------------------------------------------------- constants */
-const CS = 16, H = 64, NT = 66, TS = 16, EPS = 0.0008, LEAVES = 7;
+const CS = 16, H = 64, NT = 67, TS = 16, EPS = 0.0008, LEAVES = 7;
 const HOT = 10, INV = 30, TOTAL = HOT + INV, STACK = 64;
 const WATER = 19, LAVA = 20, OBSIDIAN = 21, SNOW = 22, ICE = 23, SEA = 20, LAVA_Y = 6, GEN = 3, CACTUS = 34, BUSH = 35;
 const isFluid = (id) => id === WATER || id === LAVA;
@@ -314,12 +314,12 @@ const NAMES = ['Air', 'Grass', 'Dirt', 'Stone', 'Cobblestone', 'Planks', 'Log', 
   'Stone Bricks', 'Bricks', 'Coal Ore', 'Iron Ore', 'Diamond Ore', 'Crafting Table', 'Bedrock', 'Water', 'Lava', 'Obsidian', 'Snow', 'Ice',
   'Spruce Log', 'Spruce Log', 'Spruce Log', 'Birch Log', 'Birch Log', 'Birch Log', 'Spruce Planks', 'Birch Planks',
   'Spruce Leaves', 'Birch Leaves', 'Cactus', 'Dead Bush',
-  'Torch', 'Torch', 'Torch', 'Torch', 'Torch', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace'];
+  'Torch', 'Torch', 'Torch', 'Torch', 'Torch', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Gravel'];
 const TRANSP = [0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
-  0];
+  0, 0];
 /* f = tile for each face: +x, -x, +y, -y, +z, -z */
 const mk = (top, side, bottom) => ({ f: [side, side, top, bottom, side, side] });
 const DEFS = [
@@ -343,7 +343,8 @@ const DEFS = [
   { f: [59, 59, 59, 59, 59, 59] }, { f: [59, 59, 59, 59, 59, 59] }, { f: [59, 59, 59, 59, 59, 59] },
   { f: [59, 59, 59, 59, 59, 59] }, { f: [59, 59, 59, 59, 59, 59] },   /* torch: upright, then leaning off a wall facing +x, -x, +z, -z */
   { f: [61, 60, 63, 60, 60, 60] }, { f: [60, 61, 63, 60, 60, 60] }, { f: [60, 60, 63, 60, 61, 60] }, { f: [60, 60, 63, 60, 60, 61] },   /* furnace facing +x, -x, +z, -z */
-  { f: [62, 60, 63, 60, 60, 60] }, { f: [60, 62, 63, 60, 60, 60] }, { f: [60, 60, 63, 60, 62, 60] }, { f: [60, 60, 63, 60, 60, 62] }    /* lit furnace */
+  { f: [62, 60, 63, 60, 60, 60] }, { f: [60, 62, 63, 60, 60, 60] }, { f: [60, 60, 63, 60, 62, 60] }, { f: [60, 60, 63, 60, 60, 62] },   /* lit furnace */
+  mk(66, 66, 66)                                      /* gravel */
 ];
 
 /* items: 100 to 103 are materials, 110 to 121 are tools (type * 4 + tier) */
@@ -373,7 +374,7 @@ const toolMax = (id) => TIERS[(id - TOOL_BASE) % 4].dur;
 const stackMax = (id) => (isTool(id) || id === 106 || id === 107) ? 1 : (id === 105 ? 16 : STACK);
 const itemName = (id) => id < 100 ? NAMES[id] : ITEM_INFO[id].name;
 const itemTile = (id) => id < 100 ? DEFS[id].f[0] : ITEM_INFO[id].tile;
-const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41];
+const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49];
 const PALETTE = PLACEABLE.concat([100, 101, 102, 103, 104, 105, 106, 107, 108, 109]);
 for (let i = 0; i < 12; i++) PALETTE.push(TOOL_BASE + i);
 const validItem = (id) => Number.isInteger(id) && (PLACEABLE.indexOf(id) >= 0 || (id >= 100 && id <= 109) || isTool(id));
@@ -391,7 +392,7 @@ bi(15, 3, 'pick', 1); bi(16, 3, 'pick', 2); bi(17, 2.5, 'axe', -1); bi(18, Infin
 bi(19, Infinity, null, 0); bi(20, Infinity, null, 0); bi(21, 50, 'pick', 3); bi(22, 0.2, 'shovel', -1); bi(23, 0.5, 'pick', -1);
 bi(24, 2, 'axe', -1); bi(27, 2, 'axe', -1); bi(30, 2, 'axe', -1); bi(31, 2, 'axe', -1);
 bi(32, 0.2, null, -1); bi(33, 0.2, null, -1); bi(34, 0.4, null, -1); bi(35, 0, null, -1);
-bi(36, 0, null, -1); bi(41, 3.5, 'pick', 0);
+bi(36, 0, null, -1); bi(41, 3.5, 'pick', 0); bi(49, 0.6, 'shovel', -1);
 const binfo = (id) => BINFO[canon(id)];
 /* what a block turns into when you mine it (no furnace yet, so iron ore gives ingots) */
 function dropOf(id) {
@@ -775,6 +776,14 @@ function paintArt(tile, rows, tier) {
     else if (x > 2 && x < 13 && y > 2 && y < 13) px(63, x, y, 110 + v, 110 + v, 110 + v);
     else px(63, x, y, 128 + v, 128 + v, 128 + v);
   }
+  /* gravel (66): small stones in a few shades */
+  const GRV = [[110, 106, 104], [150, 146, 142], [128, 124, 120], [96, 94, 92], [168, 160, 150]];
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    let hh = Math.imul(x >> 1, 73856093) ^ Math.imul(y >> 1, 19349663);
+    hh = Math.imul(hh ^ (hh >>> 13), 1274126177); hh ^= hh >>> 16;
+    const gc = GRV[(hh >>> 0) % 5], gv = n(9);
+    px(66, x, y, gc[0] + gv, gc[1] + gv, gc[2] + gv);
+  }
 })();
 
 /* ------------------------------------------------------------------- three */
@@ -802,6 +811,7 @@ tex.generateMipmaps = false;
 const material = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, alphaTest: 0.5 });
 const waterMat = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide });
 const lavaMat = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true });
+const fallMat = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true });
 
 const highlight = new THREE.LineSegments(
   new THREE.EdgesGeometry(new THREE.BoxGeometry(1.005, 1.005, 1.005)),
@@ -873,7 +883,7 @@ function updateSky(headId) {
   let r = lerp(SKY_NIGHT[0], SKY_DAY[0], daylight), g = lerp(SKY_NIGHT[1], SKY_DAY[1], daylight), b = lerp(SKY_NIGHT[2], SKY_DAY[2], daylight);
   r = lerp(r, SKY_DUSK[0], dusk); g = lerp(g, SKY_DUSK[1], dusk); b = lerp(b, SKY_DUSK[2], dusk);
   const B = 0.2 + 0.8 * daylight, tr = B * (0.78 + 0.22 * daylight), tg = B * (0.85 + 0.15 * daylight);
-  LT.r = tr; LT.g = tg; LT.b = B;
+  LT.r = tr; LT.g = tg; LT.b = B; fallMat.color.setRGB(tr, tg, B);
   envMode = headId === WATER ? 1 : (headId === LAVA ? 2 : 0);
   let near, far;
   if (envMode === 1) {
@@ -906,12 +916,13 @@ window.addEventListener('resize', () => {
 const chunks = new Map();
 const key = (cx, cz) => cx + ',' + cz;
 
-/* caves: thin winding tunnels (two noise fields crossing zero) plus a few big caverns deep down */
-function caveAt(wx, y, wz) {
-  const a = perlin3(wx * 0.05, y * 0.075, wz * 0.05);
-  const b = perlin3(wx * 0.05 + 71.3, y * 0.075 + 33.1, wz * 0.05 + 12.7);
-  if (a * a + b * b < 0.006) return true;
-  return y < 30 && perlin3(wx * 0.022 + 9.1, y * 0.04, wz * 0.022 + 4.4) > 0.55;
+/* caves: wide winding tunnels (two noise fields crossing zero) plus big caverns deep down */
+function caveAt(wx, y, wz, h) {
+  const depth = h - y, k = Math.min(1, 0.5 + depth / 8);   /* tunnels thin out near the surface, leaving the odd entrance */
+  const a = perlin3(wx * 0.034, y * 0.05, wz * 0.034);
+  const b = perlin3(wx * 0.034 + 71.3, y * 0.05 + 33.1, wz * 0.034 + 12.7);
+  if (a * a + b * b < 0.016 * k * k) return true;
+  return depth > 10 && y < 45 && perlin3(wx * 0.014 + 9.1, y * 0.026, wz * 0.014 + 4.4) > 0.52;
 }
 /* ore veins: id, tries per chunk, vein size, lowest y, highest y */
 const OREGEN = [[14, 18, 6, 1, 52], [15, 12, 4, 1, 36], [16, 2, 3, 1, 14]];
@@ -943,7 +954,7 @@ function genChunk(cx, cz) {
     bio[ci] = b; hts[ci] = h;
     const under = h < SEA;
     let topId, fillId;
-    if (under) { topId = h >= SEA - 4 ? 8 : 2; fillId = topId; }
+    if (under) { topId = fbm(wx * 0.04 + 1200, wz * 0.04 + 1200, 2) > 0.18 ? 49 : (h >= SEA - 4 ? 8 : 2); fillId = topId; }
     else if (h >= 46) { topId = SNOW; fillId = 3; }
     else if (h >= 38) { topId = 3; fillId = 3; }
     else if (b === 2 || h <= SEA + 1) { topId = 8; fillId = 8; }
@@ -960,7 +971,7 @@ function genChunk(cx, cz) {
     if (under) for (let y = h + 1; y < SEA; y++) data[x + (z << 4) + (y << 8)] = (b === 3 && y === SEA - 1) ? ICE : WATER;
     for (let y = 2; y <= h; y++) {
       if (h < SEA + 2 && y > h - 4) continue;   /* keep lake and ocean floors sealed */
-      if (caveAt(wx, y, wz)) data[x + (z << 4) + (y << 8)] = y <= LAVA_Y ? LAVA : 0;
+      if (caveAt(wx, y, wz, h)) data[x + (z << 4) + (y << 8)] = y <= LAVA_Y ? LAVA : 0;
     }
     const topY = under ? SEA - 1 : h;
     if (topY > maxY) maxY = topY;
@@ -970,6 +981,7 @@ function genChunk(cx, cz) {
     const x = (rnd() * 16) | 0, z = (rnd() * 16) | 0, y = o[3] + ((rnd() * (o[4] - o[3])) | 0);
     oreBlob(data, rnd, o[0], x, y, z, o[2]);
   }
+  for (let t = 0; t < 8; t++) oreBlob(data, rnd, 49, (rnd() * 16) | 0, 5 + ((rnd() * 52) | 0), (rnd() * 16) | 0, 18);   /* pockets of gravel */
   const birchPatch = (wx, wz) => fbm(wx * 0.006 + 1500, wz * 0.006 + 1500, 2) > 0.2;
   for (let z = 2; z <= 13; z++) for (let x = 2; x <= 13; x++) {
     const i = x + z * 16, wx = cx * CS + x, wz = cz * CS + z, h = hts[i], b = bio[i];
@@ -1164,6 +1176,81 @@ function fluidStep(dt) {
     if (++n >= 300 || performance.now() - t0 > 4) break;
   }
 }
+/* ---------------------------------------------------------------- gravity
+   Sand and gravel fall when nothing holds them up. A falling block is a little entity that drops until it
+   meets something solid, then turns back into a block (washing away torches, plants and fluid on the way). */
+const GRAV = []; GRAV[8] = GRAV[49] = 1;
+const gravDue = new Set();
+const fallers = [];
+const fallGeo = {};
+const passable = (id) => id === 0 || replaceable(id) || isFluid(id);
+function scheduleGravity(x, y, z) { if (y >= 0 && y < H) gravDue.add(x + ',' + y + ',' + z); }
+function fallGeometry(id) {
+  if (fallGeo[id]) return fallGeo[id];
+  const P = [], C = [], U = [], I = [];
+  for (let fi = 0; fi < 6; fi++) {
+    const f = FACES[fi], tile = DEFS[id].f[fi], u0 = tile / NT + EPS, u1 = (tile + 1) / NT - EPS;
+    for (let k = 0; k < 4; k++) {
+      const cc = f.c[k];
+      P.push(cc[0] - 0.5, cc[1], cc[2] - 0.5); C.push(f.shade, f.shade, f.shade);
+      U.push(UVS[k][0] ? u1 : u0, UVS[k][1] ? 1 - EPS : EPS);
+    }
+    I.push(fi * 4, fi * 4 + 1, fi * 4 + 2, fi * 4, fi * 4 + 2, fi * 4 + 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3));
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(C), 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(U), 2));
+  g.setIndex(new THREE.BufferAttribute(new Uint32Array(I), 1));
+  g.computeBoundingSphere();
+  fallGeo[id] = g;
+  return g;
+}
+function spawnFaller(x, y, z, id) {
+  setBlock(x, y, z, 0);
+  supportCheck(x, y + 1, z, true); torchSupport(x, y, z, true);
+  const m = new THREE.Mesh(fallGeometry(id), fallMat);
+  m.position.set(x + 0.5, y, z + 0.5);
+  scene.add(m);
+  fallers.push({ id: id, bx: x, bz: z, y: y, vy: 0, mesh: m });
+}
+function landFaller(f) {
+  const cy = Math.round(f.y);
+  scene.remove(f.mesh);
+  if (cy < H && passable(getBlock(f.bx, cy, f.bz)) && !intersectsPlayer(f.bx, cy, f.bz)) setBlock(f.bx, cy, f.bz, f.id);
+  else if (!creative) addItem(f.id, 1);
+}
+function stepFaller(f, dt) {
+  f.vy = Math.max(-45, f.vy - 28 * dt);
+  let dy = f.vy * dt;
+  while (dy < 0) {
+    const step = Math.max(dy, -0.5), ny = f.y + step, cy = Math.floor(ny - 1e-6);
+    if (cy < 0 || !passable(getBlock(f.bx, cy, f.bz))) { f.y = cy + 1; landFaller(f); return true; }
+    f.y = ny; dy -= step;
+  }
+  f.mesh.position.set(f.bx + 0.5, f.y, f.bz + 0.5);
+  return false;
+}
+function gravityStep(dt) {
+  let n = 0;
+  for (const k of gravDue) {
+    gravDue.delete(k);
+    const q = k.split(','), x = +q[0], y = +q[1], z = +q[2], id = getBlock(x, y, z);
+    if (GRAV[id] && y > 0 && passable(getBlock(x, y - 1, z))) spawnFaller(x, y, z, id);
+    if (++n >= 400) break;
+  }
+  for (let i = fallers.length - 1; i >= 0; i--) if (stepFaller(fallers[i], dt)) fallers.splice(i, 1);
+}
+/* before saving, blocks that are still in the air drop straight to where they would have landed */
+function settleFallers() {
+  while (fallers.length) {
+    const f = fallers.pop();
+    let cy = Math.floor(f.y + 1e-6);
+    while (cy > 0 && passable(getBlock(f.bx, cy - 1, f.bz))) cy--;
+    f.y = cy;
+    landFaller(f);
+  }
+}
 function emitterNear(x, y, z) {
   for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
     const ccx = (x >> 4) + dx, ccz = (z >> 4) + dz, nc = chunks.get(key(ccx, ccz));
@@ -1194,6 +1281,7 @@ function setBlock(x, y, z, id, lvl) {
     if (okx && okz) dirty.add(getChunk(cx + dx, cz + dz));
   }
   scheduleAround(x, y, z);
+  scheduleGravity(x, y, z); scheduleGravity(x, y + 1, z);
   /* light reaches 14 blocks: remesh everything it can touch when a light source changes or is close by */
   if (lv || olv || emitterNear(x, y, z)) {
     for (let ccz = (z - 15) >> 4; ccz <= (z + 15) >> 4; ccz++) for (let ccx = (x - 15) >> 4; ccx <= (x + 15) >> 4; ccx++) dirty.add(getChunk(ccx, ccz));
@@ -1815,12 +1903,12 @@ function dropFurnace(x, y, z) {
   if (f && !creative) for (const s of [f.inp, f.fuel, f.out]) if (s && !addItem(s.id, s.n, s.d)) showHint('Inventory full', 1000);
 }
 /* torches fall off when the block they are attached to is removed (wall torch ids 37 to 40 face +x, -x, +z, -z) */
-function torchSupport(x, y, z) {
+function torchSupport(x, y, z, quiet) {
   const chk = [[0, 1, 0, 36], [1, 0, 0, 37], [-1, 0, 0, 38], [0, 0, 1, 39], [0, 0, -1, 40]];
   for (const q of chk) {
     if (getBlock(x + q[0], y + q[1], z + q[2]) === q[3]) {
       setBlock(x + q[0], y + q[1], z + q[2], 0);
-      if (!creative && !addItem(36, 1)) showHint('Inventory full', 1000);
+      if (!creative && !quiet && !addItem(36, 1)) showHint('Inventory full', 1000);
     }
   }
 }
@@ -1830,11 +1918,11 @@ function giveDrop(id) {
   if (d && !addItem(d, 1)) showHint('Inventory full', 1000);
 }
 /* cacti and dead bushes fall apart when the block under them goes */
-function supportCheck(x, y, z) {
+function supportCheck(x, y, z, quiet) {
   let id = getBlock(x, y, z);
   while (id === CACTUS || id === BUSH) {
     setBlock(x, y, z, 0);
-    if (!creative) giveDrop(id);
+    if (!creative && !quiet) giveDrop(id);
     y++; id = getBlock(x, y, z);
   }
 }
@@ -2382,6 +2470,7 @@ newBtn.addEventListener('click', () => {
 
 /* --------------------------------------------------------------------- save */
 function save() {
+  settleFallers();
   if (dead) return;
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({ seed: seed, edits: edits, p: [player.x, player.y, player.z], yaw: yaw, pitch: pitch, gen: GEN, time: worldTime, furnaces: furnacesJSON(), slots: slots, creative: creative, vit: { health: vit.health, food: vit.food, sat: vit.sat } }));
@@ -2419,7 +2508,7 @@ function frame(now) {
 
   stream();
   lightingStep();
-  if (playing || invOpen) { furnaceTick(dt); fluidStep(dt); }
+  if (playing || invOpen) { furnaceTick(dt); fluidStep(dt); gravityStep(dt); }
   if (invOpen && curFurnace) renderFurnace();
 
   if (playing) {
