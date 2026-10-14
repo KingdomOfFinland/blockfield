@@ -298,7 +298,7 @@ if (typeof THREE === 'undefined') {
 }
 
 /* ---------------------------------------------------------------- constants */
-const CS = 16, H = 64, NT = 90, TS = 16, EPS = 0.0008, LEAVES = 7;
+const CS = 16, H = 64, NT = 126, TS = 16, EPS = 0.0008, LEAVES = 7;
 const HOT = 10, INV = 30, TOTAL = HOT + INV, STACK = 64;
 const WATER = 19, LAVA = 20, OBSIDIAN = 21, SNOW = 22, ICE = 23, SEA = 20, LAVA_Y = 6, GEN = 3, CACTUS = 34, BUSH = 35;
 const isFluid = (id) => id === WATER || id === LAVA;
@@ -307,20 +307,27 @@ const LOGMAP = { 10: 6, 11: 6, 25: 24, 26: 24, 28: 27, 29: 27, 51: 50, 52: 50 };
 const LOGAXIS = { 6: [10, 11], 24: [25, 26], 27: [28, 29], 50: [51, 52] };                       /* upright log -> [along X, along Z] */
 const TORCHMAP = { 37: 36, 38: 36, 39: 36, 40: 36 };                               /* wall torches -> standing torch */
 const FURNMAP = { 42: 41, 43: 41, 44: 41, 45: 41, 46: 41, 47: 41, 48: 41 };        /* facings and lit furnaces -> furnace */
-const canon = (id) => LOGMAP[id] || TORCHMAP[id] || FURNMAP[id] || id;
-const EMIT_LV = (id) => id === LAVA ? 15 : ((id >= 36 && id <= 40) ? 14 : ((id >= 45 && id <= 48) ? 13 : 0));   /* light a block gives off */
+const ONOFF = { 63: 62, 65: 64, 67: 66, 69: 68, 72: 71, 74: 73 };                           /* powered state -> resting state */
+const PASS = []; [61, 64, 65, 66, 67, 68, 69, 72, 73, 74].forEach((i) => { PASS[i] = 1; });   /* blocks you walk through */
+const FLATB = { 61: 1, 64: 1, 65: 1, 66: 1, 67: 1, 68: 1, 69: 1, 73: 1, 74: 1 };                    /* sit on the block below and fall off without it */
+const NETB = { 61: 1, 64: 1, 65: 1, 66: 1, 67: 1, 68: 1, 69: 1, 70: 1, 73: 1, 74: 1 };              /* changing these re-works the power network */
+const canon = (id) => LOGMAP[id] || TORCHMAP[id] || FURNMAP[id] || ONOFF[id] || id;
+const EMIT_LV = (id) => id === LAVA ? 15 : id === 63 ? 14 : ((id >= 36 && id <= 40) ? 14 : ((id >= 45 && id <= 48) ? 13 : 0));   /* light a block gives off */
 const isPlanks = (id) => id === 5 || id === 30 || id === 31;
 const NAMES = ['Air', 'Grass', 'Dirt', 'Stone', 'Cobblestone', 'Planks', 'Log', 'Leaves', 'Sand', 'Glass', 'Log', 'Log',
   'Stone Bricks', 'Bricks', 'Coal Ore', 'Iron Ore', 'Diamond Ore', 'Crafting Table', 'Bedrock', 'Water', 'Lava', 'Obsidian', 'Snow', 'Ice',
   'Spruce Log', 'Spruce Log', 'Spruce Log', 'Birch Log', 'Birch Log', 'Birch Log', 'Spruce Planks', 'Birch Planks',
   'Spruce Leaves', 'Birch Leaves', 'Cactus', 'Dead Bush',
   'Torch', 'Torch', 'Torch', 'Torch', 'Torch', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Gravel',
-  'Acacia Log', 'Acacia Log', 'Acacia Log', 'Acacia Planks', 'Acacia Leaves', 'Savanna Grass', 'Copper Ore', 'Copper Block'];
+  'Acacia Log', 'Acacia Log', 'Acacia Log', 'Acacia Planks', 'Acacia Leaves', 'Savanna Grass', 'Copper Ore', 'Copper Block', 'Exposed Copper', 'Weathered Copper', 'Oxidized Copper',
+  'Copper Wire', 'Lamp', 'Lamp', 'Lever', 'Lever', 'Button', 'Button', 'Pressure Plate', 'Pressure Plate', 'Battery', 'Copper Gate', 'Copper Gate', 'Repeater', 'Repeater', 'Gold Ore', 'Gold Block', 'Coal Block', 'Iron Block', 'Diamond Block'];
 const TRANSP = [0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 1, 0, 0, 0];
+  0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+  1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1,
+  1, 1, 0, 0, 0, 0, 0];
 /* f = tile for each face: +x, -x, +y, -y, +z, -z */
 const mk = (top, side, bottom) => ({ f: [side, side, top, bottom, side, side] });
 const DEFS = [
@@ -349,7 +356,18 @@ const DEFS = [
   { f: [79, 79, 81, 81, 79, 79] }, { f: [81, 81, 80, 80, 80, 80] }, { f: [80, 80, 79, 79, 81, 81] },   /* acacia log: up, along X, along Z */
   mk(82, 82, 82), mk(83, 83, 83),                     /* acacia planks and leaves */
   mk(84, 85, 2),                                      /* savanna grass: dry top, grassy side, dirt underneath */
-  mk(86, 86, 86), mk(87, 87, 87)                      /* copper ore, copper block */
+  mk(86, 86, 86), mk(87, 87, 87),                     /* copper ore, copper block */
+  mk(90, 90, 90), mk(91, 91, 91), mk(92, 92, 92),     /* exposed, weathered and oxidized copper */
+  mk(97, 97, 97),                                     /* 61 copper wire (drawn flat by the mesher) */
+  mk(98, 98, 98), mk(99, 99, 99),                     /* 62 lamp, 63 lamp on */
+  mk(100, 100, 100), mk(101, 101, 101),               /* 64 lever, 65 lever on (crossed sheets like a plant) */
+  mk(102, 102, 102), mk(102, 102, 102),               /* 66 button, 67 pressed (a flat pad) */
+  mk(103, 103, 103), mk(103, 103, 103),               /* 68 pressure plate, 69 pressed */
+  mk(104, 105, 104),                                  /* 70 battery */
+  mk(106, 106, 106), mk(107, 107, 107),               /* 71 copper gate, 72 open gate (you walk through it) */
+  mk(108, 108, 108), mk(109, 109, 109),               /* 73 repeater, 74 repeater on (facing is kept in the flag byte) */
+  mk(114, 114, 114), mk(115, 115, 115),               /* 75 gold ore, 76 gold block */
+  mk(123, 123, 123), mk(124, 124, 124), mk(125, 125, 125)   /* 77 coal block, 78 iron block, 79 diamond block */
 ];
 
 /* items: 100 to 103 are materials, 110 to 121 are tools (type * 4 + tier) */
@@ -374,28 +392,32 @@ const SWORD_BASE = 122;
 for (let r = 0; r < 4; r++) ITEM_INFO[SWORD_BASE + r] = { name: TIERS[r].name + ' Sword', tile: 67 + r };
 ITEM_INFO[126] = { name: 'Raw Pork', tile: 71 }; ITEM_INFO[127] = { name: 'Raw Beef', tile: 72 };
 ITEM_INFO[128] = { name: 'Cooked Pork', tile: 73 }; ITEM_INFO[129] = { name: 'Cooked Beef', tile: 74 };
-ITEM_INFO[130] = { name: 'Rotten Flesh', tile: 75 }; ITEM_INFO[131] = { name: 'Bone', tile: 76 }; ITEM_INFO[132] = { name: 'Arrow', tile: 77 }; ITEM_INFO[133] = { name: 'Bow', tile: 78 }; ITEM_INFO[134] = { name: 'Raw Copper', tile: 88 }; ITEM_INFO[135] = { name: 'Copper Ingot', tile: 89 };
-const isSword = (id) => id >= SWORD_BASE && id < SWORD_BASE + 4;
-const isTool = (id) => id >= TOOL_BASE && id < TOOL_BASE + 12;
+ITEM_INFO[130] = { name: 'Rotten Flesh', tile: 75 }; ITEM_INFO[131] = { name: 'Bone', tile: 76 }; ITEM_INFO[132] = { name: 'Arrow', tile: 77 }; ITEM_INFO[133] = { name: 'Bow', tile: 78 }; ITEM_INFO[134] = { name: 'Raw Copper', tile: 88 }; ITEM_INFO[135] = { name: 'Copper Ingot', tile: 89 }; ITEM_INFO[140] = { name: 'String', tile: 110 }; ITEM_INFO[141] = { name: 'Snowball', tile: 111 }; ITEM_INFO[144] = { name: 'Raw Gold', tile: 116 }; ITEM_INFO[145] = { name: 'Gold Ingot', tile: 117 }; ITEM_INFO[150] = { name: 'Golden Apple', tile: 122 };
+['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[146 + i] = { name: 'Golden ' + nm, tile: 118 + i }; }); ITEM_INFO[142] = { name: 'Rock', tile: 112 }; ITEM_INFO[143] = { name: 'Packed Snowball', tile: 113 };
+['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[136 + i] = { name: 'Copper ' + nm, tile: 93 + i }; });
+const isSword = (id) => (id >= SWORD_BASE && id < SWORD_BASE + 4) || id === 139 || id === 149;
+const isTool = (id) => (id >= TOOL_BASE && id < TOOL_BASE + 12) || (id >= 136 && id <= 138) || (id >= 146 && id <= 148);   /* 146 to 149: golden pickaxe, axe, shovel, sword */   /* 136 to 139 are the copper pickaxe, axe, shovel and sword */
 const isDur = (id) => isTool(id) || isSword(id) || id === 133;
 function toolOf(st) {
   if (!st || !isTool(st.id)) return null;
+  if (st.id >= 146) return { type: TOOL_TYPES[st.id - 146], tier: 0, lvl: 0, speed: 12 };   /* gold: very fast, wood's reach, breaks almost at once */
+  if (st.id >= 136) return { type: TOOL_TYPES[st.id - 136], tier: 1, lvl: 1.5, speed: 5 };   /* copper: stone's reach, a bit faster than stone */
   const k = st.id - TOOL_BASE;
   return { type: TOOL_TYPES[(k / 4) | 0], tier: k % 4 };
 }
-const toolMax = (id) => id === 133 ? 385 : TIERS[isSword(id) ? id - SWORD_BASE : (id - TOOL_BASE) % 4].dur;
+const toolMax = (id) => (id >= 146 && id <= 149) ? 32 : (id >= 136 && id <= 139) ? 190 : id === 133 ? 385 : TIERS[isSword(id) ? id - SWORD_BASE : (id - TOOL_BASE) % 4].dur;
 const stackMax = (id) => (isDur(id) || id === 106 || id === 107) ? 1 : (id === 105 ? 16 : STACK);
 const itemName = (id) => id < 100 ? NAMES[id] : ITEM_INFO[id].name;
 const itemTile = (id) => id < 100 ? DEFS[id].f[0] : ITEM_INFO[id].tile;
-const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57];
+const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79];
 const PALETTE = PLACEABLE.concat([100, 101, 102, 103, 104, 105, 106, 107, 108, 109]);
 for (let i = 0; i < 12; i++) PALETTE.push(TOOL_BASE + i);
 for (let i = 0; i < 4; i++) PALETTE.push(SWORD_BASE + i);
-[126, 127, 128, 129, 130, 131, 132, 133, 134, 135].forEach((id) => PALETTE.push(id));
-const validItem = (id) => Number.isInteger(id) && (PLACEABLE.indexOf(id) >= 0 || (id >= 100 && id <= 109) || isDur(id) || (id >= 126 && id <= 135));
+[126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150].forEach((id) => PALETTE.push(id));
+const validItem = (id) => Number.isInteger(id) && (PLACEABLE.indexOf(id) >= 0 || (id >= 100 && id <= 109) || isDur(id) || (id >= 126 && id <= 135) || id === 140 || (id >= 141 && id <= 145) || id === 150);
 function makeStack(id, n) { const s = { id: id, n: n }; if (isDur(id)) s.d = toolMax(id); return s; }
 /* food restores hunger points (20 = full bar) and saturation */
-const FOOD = { 104: { food: 4, sat: 2.4 }, 126: { food: 3, sat: 1.8 }, 127: { food: 3, sat: 1.8 }, 128: { food: 8, sat: 12.8 }, 129: { food: 8, sat: 12.8 }, 130: { food: 2, sat: 0.4 } };
+const FOOD = { 150: { food: 4, sat: 9.6, heal: 8 }, 104: { food: 4, sat: 2.4 }, 126: { food: 3, sat: 1.8 }, 127: { food: 3, sat: 1.8 }, 128: { food: 8, sat: 12.8 }, 129: { food: 8, sat: 12.8 }, 130: { food: 2, sat: 0.4 } };
 
 /* block hardness (seconds, like Minecraft), best tool, and the pickaxe tier needed for a drop (-1 means none) */
 const BINFO = [];
@@ -408,13 +430,15 @@ bi(19, Infinity, null, 0); bi(20, Infinity, null, 0); bi(21, 50, 'pick', 3); bi(
 bi(24, 2, 'axe', -1); bi(27, 2, 'axe', -1); bi(30, 2, 'axe', -1); bi(31, 2, 'axe', -1);
 bi(32, 0.2, null, -1); bi(33, 0.2, null, -1); bi(34, 0.4, null, -1); bi(35, 0, null, -1);
 bi(36, 0, null, -1); bi(41, 3.5, 'pick', 0); bi(49, 0.6, 'shovel', -1);
-bi(50, 2, 'axe', -1); bi(51, 2, 'axe', -1); bi(52, 2, 'axe', -1); bi(53, 2, 'axe', -1); bi(54, 0.2, null, -1); bi(55, 0.6, 'shovel', -1); bi(56, 3, 'pick', 1); bi(57, 3, 'pick', 0);
+bi(50, 2, 'axe', -1); bi(51, 2, 'axe', -1); bi(52, 2, 'axe', -1); bi(53, 2, 'axe', -1); bi(54, 0.2, null, -1); bi(55, 0.6, 'shovel', -1); bi(56, 3, 'pick', 1); bi(57, 3, 'pick', 0); bi(58, 3, 'pick', 0); bi(59, 3, 'pick', 0); bi(60, 3, 'pick', 0);
+bi(61, 0, null, -1); bi(62, 0.5, null, -1); bi(64, 0.5, null, -1); bi(66, 0.5, null, -1); bi(68, 0.5, null, -1); bi(70, 3, 'pick', 0); bi(71, 3, 'pick', 0); bi(73, 0.3, null, -1); bi(75, 3, 'pick', 2); bi(76, 3, 'pick', 1); bi(77, 5, 'pick', 0); bi(78, 5, 'pick', 1); bi(79, 5, 'pick', 2);
 const binfo = (id) => BINFO[canon(id)];
 /* what a block turns into when you mine it (no furnace yet, so iron ore gives ingots) */
 function dropOf(id) {
   if (LOGMAP[id]) return LOGMAP[id];
   if (TORCHMAP[id]) return 36;
   if (FURNMAP[id]) return 41;
+  if (ONOFF[id]) return ONOFF[id];
   if (id === BUSH) return 100;
   if (id === 1 || id === 55) return 2;
   if (id === 3) return 4;
@@ -422,6 +446,7 @@ function dropOf(id) {
   if (id === 15) return 108;
   if (id === 16) return 103;
   if (id === 56) return 134;
+  if (id === 75) return 144;
   if (id === 18) return 0;
   return id;
 }
@@ -433,7 +458,7 @@ function breakTime(id, st) {
   const info = binfo(id);
   if (!info || info.hard === Infinity) return Infinity;
   const tool = toolOf(st);
-  const speed = (tool && info.tool === tool.type) ? TIERS[tool.tier].speed : 1;
+  const speed = (tool && info.tool === tool.type) ? (tool.speed || TIERS[tool.tier].speed) : 1;
   return info.hard * (canHarvest(id, tool) ? 1.5 : 5) / speed;
 }
 
@@ -452,8 +477,34 @@ TIERS.forEach((tr, r) => {
   shaped([[M], [S], [S]], TOOL_BASE + 8 + r, 1);
 });
 TIERS.forEach((tr, r) => shaped([[tr.mat], [tr.mat], [100]], SWORD_BASE + r, 1));   /* sword: two of the material over a stick */
+{ const M = 135, S = 100;   /* copper tools: pickaxe, axe, shovel, sword */
+  shaped([[M, M, M], [0, S, 0], [0, S, 0]], 136, 1); shaped([[M, M], [M, S], [0, S]], 137, 1);
+  shaped([[M], [S], [S]], 138, 1); shaped([[M], [M], [S]], 139, 1); }
+shaped([[135, 135, 135]], 61, 6);                                    /* copper wire: 3 ingots make 6 */
+shaped([[0, 135, 0], [135, 9, 135], [0, 135, 0]], 62, 1);            /* lamp: glass ringed by copper */
+shaped([[100], [4]], 64, 1);                                         /* lever: a stick on cobblestone */
+shapeless([3], 66, 1);                                               /* button: one stone */
+shaped([[3, 3]], 68, 1);                                             /* pressure plate: two stone */
+shaped([[135, 135, 135], [135, 101, 135], [135, 135, 135]], 70, 1);  /* battery: coal in a ring of copper */
+shaped([[135, 135], [135, 135]], 71, 1);                             /* copper gate */
+shaped([[135, 0, 135], [3, 3, 3]], 73, 1);                         /* repeater: two copper ingots over three stone */
+{ const G = 145, S = 100;   /* gold: block, tools, golden apple */
+  shaped([[G, G, G], [G, G, G], [G, G, G]], 76, 1); shapeless([76], 145, 9);
+  shaped([[G, G, G], [0, S, 0], [0, S, 0]], 146, 1); shaped([[G, G], [G, S], [0, S]], 147, 1);
+  shaped([[G], [S], [S]], 148, 1); shaped([[G], [G], [S]], 149, 1);
+  shaped([[G, G, G], [G, 104, G], [G, G, G]], 150, 1); }
+for (const pr of [[101, 77], [102, 78], [103, 79]]) {   /* storage blocks: nine coal, iron ingots or diamonds, and back again */
+  const it = pr[0], bk = pr[1];
+  shaped([[it, it, it], [it, it, it], [it, it, it]], bk, 1); shapeless([bk], it, 9);
+}
+shapeless([4], 142, 4);                                            /* a cobblestone makes 4 rocks */
+shaped([[142, 142], [142, 142]], 4, 1);                              /* and 4 rocks make a cobblestone */
+shapeless([141, 142], 143, 1);                                       /* a snowball packed around a rock */
+shapeless([22], 141, 4);                                           /* a snow block makes 4 snowballs */
+shaped([[141, 141], [141, 141]], 22, 1);                             /* and 4 snowballs make a snow block */
 shaped([[131], [100]], 132, 4);                                   /* bone over a stick: 4 arrows */
-shaped([[0, 100, 131], [100, 0, 131], [0, 100, 131]], 133, 1);    /* bow: three sticks and three bones (the bones are the string) */
+shaped([[0, 100, 131], [100, 0, 131], [0, 100, 131]], 133, 1);
+shaped([[0, 100, 140], [100, 0, 140], [0, 100, 140]], 133, 1);    /* or the proper way: three sticks and three string */    /* bow: three sticks and three bones (the bones are the string) */
 shaped([[102, 0, 102], [0, 102, 0]], 105, 1);    /* iron bucket */
 shaped([[101], [100]], 36, 4);                   /* coal over a stick: 4 torches */
 shaped([[4, 4, 4], [4, 0, 4], [4, 4, 4]], 41, 1);   /* a ring of cobblestone: furnace */
@@ -899,6 +950,170 @@ renderer.setSize(window.innerWidth, window.innerHeight);
   paintMap(88, ART.rawiron, { o: [110, 52, 30], a: [236, 150, 98], b: [204, 112, 66], c: [150, 74, 44] });
   paintMap(89, ART.ingot, { I: [196, 108, 70], W: [240, 156, 106], J: [142, 72, 44] });
 })();
+
+/* ---- weathered copper (tiles 90 to 92) and copper tools (tiles 93 to 96) ---- */
+(function paintWeatheringArt() {
+  const rnd = mulberry32(6262);
+  const n = (amt) => (rnd() - 0.5) * 2 * amt;
+  const set = (t, x, y, c) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) px(t, x, y, c[0], c[1], c[2]); };
+  const STAGES = [[90, [170, 122, 94], [128, 88, 66], [198, 150, 118]], [91, [112, 152, 118], [78, 112, 88], [142, 180, 144]], [92, [80, 170, 142], [52, 128, 108], [114, 202, 172]]];
+  STAGES.forEach((st) => {
+    for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+      const v = n(6), c = (x % 8 === 0 || y % 8 === 0) ? st[2] : ((x % 8 === 1 || y % 8 === 1) ? st[3] : st[1]);
+      set(st[0], x, y, [c[0] + v, c[1] + v, c[2] + v]);
+    }
+  });
+  const M = [212, 120, 76], D = [150, 76, 46];
+  const paintCol = (t, rows) => { for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) { const ch = rows[y].charAt(x); if (ch === '.') continue; const c = ch === 'M' ? M : (ch === 'D' ? D : ART_COL[ch]); if (c) set(t, x, y, c); } };
+  paintCol(93, ART.pick); paintCol(94, ART.axe); paintCol(95, ART.shovel);
+  for (let i = 0; i < 9; i++) { const x = 13 - i, y = 1 + i; set(96, x - 1, y, D); set(96, x, y, M); set(96, x + 1, y, D); }
+  set(96, 14, 0, M); set(96, 14, 1, D);
+  [[2, 8], [3, 9], [4, 10], [5, 11], [6, 12]].forEach((c) => set(96, c[0], c[1], [92, 92, 100]));
+  [[3, 11], [2, 12], [1, 13]].forEach((c) => set(96, c[0], c[1], [150, 110, 60]));
+  set(96, 4, 11, [104, 76, 40]); set(96, 3, 12, [104, 76, 40]); set(96, 2, 13, [104, 76, 40]); set(96, 0, 14, [60, 60, 66]);
+})();
+
+/* ---- wires and devices (tiles 97 to 107) ---- */
+(function paintWireArt() {
+  const rnd = mulberry32(7373);
+  const n = (a) => (rnd() - 0.5) * 2 * a;
+  const set = (t, x, y, c) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) px(t, x, y, c[0], c[1], c[2]); };
+  const rect = (t, x0, y0, x1, y1, c) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(t, x, y, c); };
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const v = n(8);
+    set(97, x, y, [236 + v, 128 + v, 56 + v]);                                   /* wire: warm copper, the mesher dims it with the power level */
+    const edge = x < 2 || x > 13 || y < 2 || y > 13, bar = x === 7 || x === 8 || y === 7 || y === 8;
+    set(98, x, y, (edge || bar) ? [118 + v, 70 + v, 48 + v] : [88 + v, 80 + v, 70 + v]);        /* lamp, off */
+    set(99, x, y, (edge || bar) ? [214 + v, 142 + v, 74 + v] : [255, 238 + v, 150 + v]);        /* lamp, on */
+    const e2 = x === 0 || x === 15 || y === 0 || y === 15, in2 = x > 2 && x < 13 && y > 2 && y < 13;
+    set(102, x, y, e2 ? [92, 92, 96] : (in2 ? [168 + v, 168 + v, 172 + v] : [140 + v, 140 + v, 144 + v]));   /* button pad */
+    set(103, x, y, e2 ? [86, 86, 90] : ((x === 2 || x === 13 || y === 2 || y === 13) ? [108, 108, 112] : [150 + v, 150 + v, 154 + v]));   /* pressure plate */
+    const d = Math.hypot(x - 7.5, y - 7.5);
+    set(104, x, y, d < 3 ? [70 + v, 70 + v, 76 + v] : (d < 6.5 ? [196 + v, 112 + v, 72 + v] : [150 + v, 82 + v, 52 + v]));   /* battery, top */
+    const band = (y >= 2 && y <= 4) || (y >= 11 && y <= 13);
+    set(105, x, y, band ? [192 + v, 108 + v, 70 + v] : [58 + v, 58 + v, 66 + v]);                /* battery, side */
+    const fr = x < 2 || x > 13 || y < 2 || y > 13, bars = (x % 4 === 1 || x % 4 === 2);
+    set(106, x, y, fr ? [150 + v, 78 + v, 48 + v] : (bars ? [198 + v, 112 + v, 72 + v] : [56, 38, 30]));   /* gate, closed */
+    if (fr) set(107, x, y, [150 + v, 78 + v, 48 + v]);                                            /* gate, open: just the frame */
+  }
+  [[8, 11], [8, 10], [7, 9], [7, 8], [6, 7], [6, 6], [5, 5], [5, 4]].forEach((c) => { set(100, c[0], c[1], [150, 110, 60]); set(101, 15 - c[0], c[1], [150, 110, 60]); });
+  [[4, 3], [5, 3], [6, 3], [4, 4], [6, 4], [4, 2], [5, 2], [6, 2]].forEach((c) => { set(100, c[0], c[1], [210, 48, 40]); set(101, 15 - c[0], c[1], [210, 48, 40]); });
+  rect(100, 4, 12, 11, 14, [112, 112, 116]); rect(101, 4, 12, 11, 14, [112, 112, 116]);
+  rect(100, 4, 15, 11, 15, [70, 70, 74]); rect(101, 4, 15, 11, 15, [70, 70, 74]);
+})();
+
+/* ---- repeater (tiles 108 and 109): a slab with an arrow, dark when idle and glowing when on ---- */
+(function paintRepeaterArt() {
+  const rnd = mulberry32(8484);
+  const set = (t, x, y, c) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) px(t, x, y, c[0], c[1], c[2]); };
+  for (let t = 108; t <= 109; t++) {
+    const on = t === 109;
+    for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+      const v = (rnd() - 0.5) * 10, e = x === 0 || x === 15 || y === 0 || y === 15, e2 = x === 1 || x === 14 || y === 1 || y === 14;
+      set(t, x, y, e ? [80, 80, 86] : (e2 ? [112, 112, 118] : [136 + v, 136 + v, 142 + v]));
+    }
+    const A = on ? [255, 154, 56] : [58, 58, 66];
+    for (let r = 0; r <= 4; r++) for (let x = 7 - r; x <= 8 + r; x++) set(t, x, 3 + r, A);
+    for (let y = 8; y <= 13; y++) for (let x = 6; x <= 9; x++) set(t, x, y, A);
+    if (on) { set(t, 3, 12, [255, 214, 120]); set(t, 12, 12, [255, 214, 120]); set(t, 3, 3, [255, 214, 120]); set(t, 12, 3, [255, 214, 120]); }
+  }
+})();
+
+/* ---- string (tile 110) ---- */
+(function paintStringArt() {
+  const set = (t, x, y, c) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) px(t, x, y, c[0], c[1], c[2]); };
+  for (let i = 0; i < 14; i++) {
+    const x = 1 + i, y = Math.round(13 - i + Math.sin(i * 0.9) * 1.4);
+    set(110, x, y, [238, 238, 238]); set(110, x + 1, y, [186, 186, 192]);
+  }
+  [[1, 12], [2, 13], [1, 13]].forEach((c) => set(110, c[0], c[1], [206, 206, 212]));
+  [[13, 1], [14, 1], [14, 2]].forEach((c) => set(110, c[0], c[1], [206, 206, 212]));
+})();
+
+/* ---- snowball (tile 111) ---- */
+(function paintSnowballArt() {
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const d = Math.hypot(x - 7.5, y - 8);
+    if (d > 5.4) continue;
+    const hi = Math.hypot(x - 5.5, y - 6) < 2.2, lo = (x - 7.5) + (y - 8) > 3.6;
+    const c = hi ? [255, 255, 255] : (lo ? [188, 202, 226] : [236, 243, 255]);
+    px(111, x, y, c[0], c[1], c[2]);
+  }
+})();
+
+/* ---- rock (tile 112) and packed snowball (tile 113) ---- */
+(function paintRockArt() {
+  const rnd = mulberry32(4343);
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const d = Math.hypot((x - 7.5) / 5.4, (y - 9) / 4.4) + (rnd() - 0.5) * 0.18;
+    if (d > 1) continue;
+    const hi = Math.hypot(x - 5.5, y - 7.2) < 2, lo = (x - 7.5) + (y - 9) > 3.2, v = (rnd() - 0.5) * 14;
+    const c = hi ? [182, 182, 190] : (lo ? [92, 92, 100] : [136, 136, 142]);
+    px(112, x, y, c[0] + v, c[1] + v, c[2] + v);
+  }
+  [[4, 10], [5, 11], [10, 8], [9, 12]].forEach((c) => px(112, c[0], c[1], 78, 78, 86));
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const d = Math.hypot(x - 7.5, y - 8);
+    if (d > 5.4) continue;
+    const hi = Math.hypot(x - 5.5, y - 6) < 2.2, lo = (x - 7.5) + (y - 8) > 3.6;
+    const c = hi ? [255, 255, 255] : (lo ? [188, 202, 226] : [236, 243, 255]);
+    px(113, x, y, c[0], c[1], c[2]);
+  }
+  [[4, 9], [5, 9], [5, 10], [10, 5], [11, 5], [10, 6], [9, 11]].forEach((c) => px(113, c[0], c[1], 124, 124, 132));   /* the rock showing through */
+})();
+
+/* ---- gold (tiles 114 to 122): ore, block, raw gold, ingot, tools, golden apple ---- */
+(function paintGoldArt() {
+  const rnd = mulberry32(2929);
+  const n = (a) => (rnd() - 0.5) * 2 * a;
+  const set = (t, x, y, c) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) px(t, x, y, c[0], c[1], c[2]); };
+  actx.drawImage(atlas, 3 * TS, 0, TS, TS, 114 * TS, 0, TS, TS);   /* the ore starts as a stone tile */
+  [[3, 3], [4, 3], [3, 4], [10, 2], [11, 2], [11, 3], [6, 8], [7, 8], [7, 9], [6, 9], [12, 7], [13, 7], [2, 12], [3, 12], [3, 13], [9, 12], [10, 12], [10, 13]].forEach((c) => {
+    set(114, c[0], c[1], rnd() < 0.6 ? [248 + n(6), 208 + n(10), 60 + n(10)] : [255, 238, 130]);
+  });
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const v = n(5), edge = x === 0 || x === 15 || y === 0 || y === 15, hi = x === 1 || y === 1, lo = x === 14 || y === 14;
+    set(115, x, y, edge ? [196 + v, 142 + v, 30] : (hi ? [255, 240 + v, 140] : (lo ? [224 + v, 172 + v, 40] : [246 + v, 208 + v, 62 + v])));
+  }
+  const paintMap = (t, rows, map) => { for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) { const c = map[rows[y].charAt(x)]; if (c) set(t, x, y, c); } };
+  paintMap(116, ART.rawiron, { o: [130, 90, 20], a: [252, 218, 90], b: [226, 176, 44], c: [172, 120, 26] });
+  paintMap(117, ART.ingot, { I: [238, 192, 42], W: [255, 240, 140], J: [172, 122, 26] });
+  const M = [250, 208, 60], D = [190, 140, 30];
+  const paintCol = (t, rows) => { for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) { const ch = rows[y].charAt(x); if (ch === '.') continue; const c = ch === 'M' ? M : (ch === 'D' ? D : ART_COL[ch]); if (c) set(t, x, y, c); } };
+  paintCol(118, ART.pick); paintCol(119, ART.axe); paintCol(120, ART.shovel);
+  for (let i = 0; i < 9; i++) { const x = 13 - i, y = 1 + i; set(121, x - 1, y, D); set(121, x, y, M); set(121, x + 1, y, D); }
+  set(121, 14, 0, M); set(121, 14, 1, D);
+  [[2, 8], [3, 9], [4, 10], [5, 11], [6, 12]].forEach((c) => set(121, c[0], c[1], [92, 92, 100]));
+  [[3, 11], [2, 12], [1, 13]].forEach((c) => set(121, c[0], c[1], [150, 110, 60]));
+  set(121, 4, 11, [104, 76, 40]); set(121, 3, 12, [104, 76, 40]); set(121, 2, 13, [104, 76, 40]); set(121, 0, 14, [60, 60, 66]);
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {   /* golden apple: the apple art re-coloured to gold */
+    const ch = ART.apple[y].charAt(x);
+    if (ch === '.') continue;
+    const c = ART_COL[ch]; if (!c) continue;
+    const lum = c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11;
+    set(122, x, y, [Math.min(255, lum * 1.25 + 50), Math.min(255, lum * 1.0 + 16), lum * 0.3]);
+  }
+  [[5, 6], [6, 5], [10, 9]].forEach((c) => set(122, c[0], c[1], [255, 250, 190]));
+})();
+
+/* ---- coal, iron and diamond blocks (tiles 123 to 125) ---- */
+(function paintStorageArt() {
+  const rnd = mulberry32(3737);
+  const n = (a) => (rnd() - 0.5) * 2 * a;
+  const set = (t, x, y, c) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) px(t, x, y, c[0], c[1], c[2]); };
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const v = n(5), edge = x === 0 || x === 15 || y === 0 || y === 15, hi = x === 1 || y === 1, lo = x === 14 || y === 14;
+    /* coal: near-black with lumpy lighter patches */
+    const bump = (((x * 7 + y * 13) % 5) === 0) || (((x * 3 + y * 11) % 7) === 0);
+    set(123, x, y, edge ? [14, 14, 16] : (bump ? [58 + v, 58 + v, 66 + v] : [30 + v, 30 + v, 36 + v]));
+    /* iron: pale grey plate with a lit top-left edge */
+    set(124, x, y, edge ? [168 + v, 168 + v, 176 + v] : (hi ? [248, 248, 252] : (lo ? [204 + v, 204 + v, 212 + v] : [226 + v, 226 + v, 232 + v])));
+    /* diamond: cyan facets */
+    const facet = (((x + y) % 6) === 0) || (((x - y + 16) % 8) === 0);
+    set(125, x, y, edge ? [36 + v, 150 + v, 164 + v] : (hi ? [200, 252, 248] : (facet ? [168 + v, 246, 240] : [92 + v, 220 + v, 212 + v])));
+  }
+  [[5, 5], [10, 9], [7, 12], [12, 4]].forEach((c) => set(125, c[0], c[1], [255, 255, 255]));
+})();
 const SKY = 0x8cc0ee;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(SKY);
@@ -1027,7 +1242,7 @@ function caveAt(wx, y, wz, h) {
   return depth > 10 && y < 45 && perlin3(wx * 0.014 + 9.1, y * 0.026, wz * 0.014 + 4.4) > 0.52;
 }
 /* ore veins: id, tries per chunk, vein size, lowest y, highest y */
-const OREGEN = [[14, 18, 6, 1, 52], [15, 12, 4, 1, 36], [16, 2, 3, 1, 14], [56, 13, 5, 1, 44]];
+const OREGEN = [[14, 18, 6, 1, 52], [15, 12, 4, 1, 36], [16, 2, 3, 1, 14], [56, 13, 5, 1, 44], [75, 4, 4, 1, 22]];
 function oreBlob(data, rnd, id, x, y, z, size) {
   for (let i = 0; i < size; i++) {
     if (x >= 0 && x < 16 && z >= 0 && z < 16 && y >= 1 && y < H) {
@@ -1240,7 +1455,7 @@ function scheduleAround(x, y, z) {
   scheduleFluid(x, y, z); scheduleFluid(x + 1, y, z); scheduleFluid(x - 1, y, z);
   scheduleFluid(x, y + 1, z); scheduleFluid(x, y - 1, z); scheduleFluid(x, y, z + 1); scheduleFluid(x, y, z - 1);
 }
-const replaceable = (id) => id === 0 || id === BUSH || (id >= 36 && id <= 40);   /* fluid washes these away */
+const replaceable = (id) => id === 0 || id === BUSH || (id >= 36 && id <= 40) || !!PASS[id];   /* fluid washes these away */
 /* water meets lava: obsidian over a lava source, cobblestone over flowing lava. Lava meets water: stone below, cobblestone beside */
 function fluidReact(tx, ty, tz, from, down) {
   const tid = getBlock(tx, ty, tz);
@@ -1392,9 +1607,9 @@ function setBlock(x, y, z, id, lvl) {
   if (y < 0 || y >= H) return;
   const cx = x >> 4, cz = z >> 4, lx = x & 15, lz = z & 15;
   const c = getChunk(cx, cz), idx = lx + (lz << 4) + (y << 8);
-  const lv = EMIT_LV(id), olv = EMIT_LV(c.data[idx]);
+  const lv = EMIT_LV(id), oldId = c.data[idx], olv = EMIT_LV(oldId);
   c.data[idx] = id;
-  const fv = (id === WATER || id === LAVA) ? (lvl || 0) : 0;
+  const fv = (id === WATER || id === LAVA || id === 61 || id === 73 || id === 74) ? (lvl || 0) : 0;
   c.fl[idx] = fv;
   dirty.add(c);
   if (id && y > c.maxY) c.maxY = y;
@@ -1408,6 +1623,7 @@ function setBlock(x, y, z, id, lvl) {
   }
   scheduleAround(x, y, z);
   scheduleGravity(x, y, z); scheduleGravity(x, y + 1, z);
+  if (NETB[id] || NETB[oldId]) netUpdate(x, y, z);
   /* light reaches 14 blocks: remesh everything it can touch when a light source changes or is close by */
   if (lv || olv || emitterNear(x, y, z)) {
     for (let ccz = (z - 15) >> 4; ccz <= (z + 15) >> 4; ccz++) for (let ccx = (x - 15) >> 4; ccx <= (x + 15) >> 4; ccx++) dirty.add(getChunk(ccx, ccz));
@@ -1580,6 +1796,22 @@ function meshChunk(c) {
   const light = computeLight(c, nb);
   const lightAt = (x, y, z) => (y < 0 || y >= H) ? 0 : light[(y * RW + (z + 16)) * RW + (x + 16)];
   const gm = mkGroup(), gw = mkGroup(), gl = mkGroup();
+  /* a flat rectangle lying in the cell at height yy, seen from both sides; full = use the whole tile, otherwise sample one solid colour */
+  const flat = (x, y, z, x0, z0, x1, z1, yy, tile, shade, full, rotf) => {
+    const fe = sky(x, y, z), fb = LBT[Math.round(lightAt(x, y, z) * 4)], fv = gm.vc;
+    const fu0 = tile / NT + EPS, fu1 = (tile + 1) / NT - EPS, fm = (tile + 0.5) / NT;
+    gm.P.push(x + x0, yy, z + z0, x + x1, yy, z + z0, x + x1, yy, z + z1, x + x0, yy, z + z1);
+    for (let k = 0; k < 4; k++) pushShade(gm, shade, fe, fb);
+    if (rotf !== undefined) {   /* turn the tile so its 'up' points the way the repeater faces (0 +x, 1 -x, 2 +z, 3 -z) */
+      for (const q of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
+        const u = rotf >= 2 ? q[0] : q[1], v = rotf === 2 ? q[1] : (rotf === 3 ? 1 - q[1] : (rotf === 0 ? q[0] : 1 - q[0]));
+        gm.U.push(fu0 + u * (fu1 - fu0), EPS + v * (1 - 2 * EPS));
+      }
+    } else if (full) gm.U.push(fu0, EPS, fu1, EPS, fu1, 1 - EPS, fu0, 1 - EPS);
+    else gm.U.push(fm, 0.5, fm, 0.5, fm, 0.5, fm, 0.5);
+    gm.I.push(fv, fv + 1, fv + 2, fv, fv + 2, fv + 3, fv, fv + 2, fv + 1, fv, fv + 3, fv + 2);
+    gm.vc += 4;
+  };
   const d = c.data, ymax = Math.min(H - 1, Math.max(c.maxY, 0));
   const ao = [3, 3, 3, 3], vE = [0, 0, 0, 0], vL = [0, 0, 0, 0];
   for (let y = 0; y <= ymax; y++) for (let z = 0; z < 16; z++) for (let x = 0; x < 16; x++) {
@@ -1587,8 +1819,33 @@ function meshChunk(c) {
     if (!id) continue;
     const def = DEFS[id];
     if (id >= 36 && id <= 40) { pushTorch(gl, x, y, z, id); continue; }
-    if (id === BUSH) {
-      /* a plant: two crossed vertical sheets, drawn from both sides */
+    if (id === 61) {
+      /* copper wire: a flat trace that reaches toward connected wires and devices, dimmer the less power it carries */
+      const lvl = getFl(x, y, z), shade = lvl > 0 ? 0.5 + 0.5 * lvl / 15 : 0.28, t0 = def.f[0], yy = y + 0.02;
+      const isConn = (dx, dz) => {
+        for (let dd = -1; dd <= 1; dd++) if (get(x + dx, y + dd, z + dz) === 61) return true;
+        const o = get(x + dx, y, z + dz); return o >= 62 && o <= 74;
+      };
+      const ce = [isConn(1, 0), isConn(-1, 0), isConn(0, 1), isConn(0, -1)], any = ce[0] || ce[1] || ce[2] || ce[3];
+      flat(x, y, z, 0.3, 0.3, 0.7, 0.7, yy, t0, shade, false);
+      if (ce[0] || !any) flat(x, y, z, 0.7, 0.3, ce[0] ? 1 : 0.84, 0.7, yy, t0, shade, false);
+      if (ce[1] || !any) flat(x, y, z, ce[1] ? 0 : 0.16, 0.3, 0.3, 0.7, yy, t0, shade, false);
+      if (ce[2] || !any) flat(x, y, z, 0.3, 0.7, 0.7, ce[2] ? 1 : 0.84, yy, t0, shade, false);
+      if (ce[3] || !any) flat(x, y, z, 0.3, ce[3] ? 0 : 0.16, 0.7, 0.3, yy, t0, shade, false);
+      continue;
+    }
+    if (id >= 66 && id <= 69) {
+      /* buttons and pressure plates: a flat pad that sinks a little when pressed */
+      const btn = id <= 67, on = (id & 1) === 1, a = btn ? 0.3 : 0.06, b = btn ? 0.7 : 0.94;
+      flat(x, y, z, a, a, b, b, y + (btn ? (on ? 0.06 : 0.12) : (on ? 0.04 : 0.08)), def.f[0], 0.95, true);
+      continue;
+    }
+    if (id === 73 || id === 74) {
+      flat(x, y, z, 0.06, 0.06, 0.94, 0.94, y + 0.1, def.f[0], 0.95, true, getFl(x, y, z) & 3);
+      continue;
+    }
+    if (id === BUSH || id === 64 || id === 65) {
+      /* a plant (or a lever): two crossed vertical sheets, drawn from both sides */
       const bt = def.f[0], bu0 = bt / NT + EPS, bu1 = (bt + 1) / NT - EPS, bv = gm.vc;
       const be = sky(x, y, z), bb = LBT[Math.round(lightAt(x, y, z) * 4)];
       gm.P.push(x + 0.1, y, z + 0.1, x + 0.9, y, z + 0.9, x + 0.9, y + 1, z + 0.9, x + 0.1, y + 1, z + 0.1,
@@ -1804,7 +2061,7 @@ function envStep(dt) {
 }
 function eatStep(dt) {
   const st = slots[sel], f = st && FOOD[st.id];
-  if (dead || creative || held !== 2 || !f || vit.food >= 20) {
+  if (dead || creative || held !== 2 || !f || (vit.food >= 20 && !f.heal)) {
     if (eatT > 0) { eatT = 0; eatBarEl.style.display = 'none'; }
     return;
   }
@@ -1815,6 +2072,7 @@ function eatStep(dt) {
     st.n--; if (st.n <= 0) slots[sel] = null;
     vit.food = Math.min(20, vit.food + f.food);
     vit.sat = Math.min(vit.food, vit.sat + f.sat);
+    if (f.heal) vit.health = Math.min(20, vit.health + f.heal);
     eatT = 0; held = -1; eatBarEl.style.display = 'none';
     invChanged();
   }
@@ -1826,7 +2084,7 @@ function collides(x, y, z) {
   const z0 = Math.floor(z - PW), z1 = Math.floor(z + PW);
   for (let yy = y0; yy <= y1; yy++) for (let zz = z0; zz <= z1; zz++) for (let xx = x0; xx <= x1; xx++) {
     const cb = getBlock(xx, yy, zz);
-    if (cb !== 0 && cb !== WATER && cb !== LAVA && cb !== BUSH && !(cb >= 36 && cb <= 40)) return true;
+    if (cb !== 0 && cb !== WATER && cb !== LAVA && cb !== BUSH && !(cb >= 36 && cb <= 40) && !PASS[cb]) return true;
   }
   return false;
 }
@@ -1975,8 +2233,8 @@ function intersectsPlayer(bx, by, bz) {
 const mine = { x: 0, y: 0, z: 0, t: 0, active: false };
 let mineCool = 0;
 /* furnaces: each one keeps its own input, fuel, output and timers */
-const SMELT = { 134: [135, 1], 126: [128, 1], 127: [129, 1], 108: [102, 1], 8: [9, 1], 4: [3, 1], 6: [109, 1], 24: [109, 1], 27: [109, 1], 50: [109, 1] };   /* item -> [result, count] */
-const FUEL = { 101: 80, 109: 80, 100: 5, 5: 15, 30: 15, 31: 15, 6: 15, 24: 15, 27: 15, 50: 15, 53: 15 };          /* item -> seconds of burning */
+const SMELT = { 144: [145, 1], 134: [135, 1], 126: [128, 1], 127: [129, 1], 108: [102, 1], 8: [9, 1], 4: [3, 1], 6: [109, 1], 24: [109, 1], 27: [109, 1], 50: [109, 1] };   /* item -> [result, count] */
+const FUEL = { 101: 80, 109: 80, 100: 5, 5: 15, 30: 15, 31: 15, 6: 15, 24: 15, 27: 15, 50: 15, 53: 15, 77: 800 };          /* item -> seconds of burning */
 const COOK_TIME = 10;
 const furnaces = new Map();
 const fkey = (x, y, z) => x + ',' + y + ',' + z;
@@ -2040,6 +2298,7 @@ function torchSupport(x, y, z, quiet) {
   }
 }
 function giveDrop(id) {
+  if (id === SNOW) { if (!addItem(141, 4)) showHint('Inventory full', 1000); return; }   /* snow breaks into snowballs */
   if (id === BUSH) { const n = Math.floor(Math.random() * 3); if (n > 0) addItem(100, n); return; }
   const d = dropOf(id);
   if (d && !addItem(d, 1)) showHint('Inventory full', 1000);
@@ -2047,7 +2306,7 @@ function giveDrop(id) {
 /* cacti and dead bushes fall apart when the block under them goes */
 function supportCheck(x, y, z, quiet) {
   let id = getBlock(x, y, z);
-  while (id === CACTUS || id === BUSH) {
+  while (id === CACTUS || id === BUSH || FLATB[id]) {
     setBlock(x, y, z, 0);
     if (!creative && !quiet) giveDrop(id);
     y++; id = getBlock(x, y, z);
@@ -2066,6 +2325,7 @@ function breakBlock(x, y, z) {
   const st = slots[sel], tool = toolOf(st);
   if (canHarvest(old, tool)) {
     giveDrop(old);
+    if ((old === 3 || old === 4 || old === 49) && Math.random() < (old === 49 ? 0.3 : 0.25)) addItem(142, 1);   /* now and then a loose rock */
   }
   if (tool) {
     st.d--;
@@ -2127,13 +2387,27 @@ function useBucket(st) {
   }
 }
 function act(btn, first) {
+  { const hs = slots[sel]; if (!(btn === 2 && hs && (hs.id === 133 || FOOD[hs.id]))) swingT = 1; }   /* the hand swings */
   if (btn === 0 && targetMob) { attackMob(targetMob); return; }
   const st = slots[sel], shiftDown = keys.ShiftLeft || keys.ShiftRight;
   if (btn === 2) {
     const tid = target ? getBlock(target.x, target.y, target.z) : 0;
     if (tid === 17 && !shiftDown) { openInventory(3); return; }
     if (tid >= 41 && tid <= 48 && !shiftDown) { openInventory('f', target.x, target.y, target.z); return; }
+    if (!shiftDown && (tid === 64 || tid === 65)) { if (first) setBlock(target.x, target.y, target.z, tid === 64 ? 65 : 64); return; }   /* levers flip */
+    if (!shiftDown && (tid === 66 || tid === 67)) {   /* buttons stay pressed for a moment */
+      if (first && tid === 66) { setBlock(target.x, target.y, target.z, 67); btnT.set(target.x + ',' + target.y + ',' + target.z, 1.5); }
+      return;
+    }
     if (st && (st.id === 105 || st.id === 106 || st.id === 107)) { if (first) useBucket(st); return; }
+    if (st && THROWN[st.id]) { if (first) throwItem(); return; }   /* snowballs and rocks are thrown, one per click */
+    if (st && AGE_PREV[tid] && toolOf(st) && toolOf(st).type === 'axe') {   /* an axe scrapes weathering off, one stage back */
+      if (first) {
+        setBlock(target.x, target.y, target.z, AGE_PREV[tid]);
+        if (!creative) { st.d -= 1; if (st.d <= 0) slots[sel] = null; invChanged(); }
+      }
+      return;
+    }
   }
   const h = target; if (!h) return;
   if (btn === 0) {
@@ -2142,8 +2416,9 @@ function act(btn, first) {
     if (!st || st.id >= 100) return;
     const bx = h.x + h.nx, by = h.y + h.ny, bz = h.z + h.nz;
     const cur = getBlock(bx, by, bz);
-    if ((cur === 0 || isFluid(cur)) && !(st.id !== 36 && intersectsPlayer(bx, by, bz))) {
+    if ((cur === 0 || isFluid(cur)) && !(st.id !== 36 && !FLATB[st.id] && intersectsPlayer(bx, by, bz))) {
       let id = st.id;
+      if (FLATB[id]) { const sup = getBlock(bx, by - 1, bz); if (sup === 0 || PASS[sup] || isFluid(sup) || sup === BUSH || (sup >= 36 && sup <= 40)) return; }   /* wires, switches and plates need a floor */
       const la = LOGAXIS[id];
       if (la) id = h.nx !== 0 ? la[0] : (h.nz !== 0 ? la[1] : id);
       if (id === 36) {
@@ -2156,7 +2431,9 @@ function act(btn, first) {
         const sx = Math.sin(yaw), cz = Math.cos(yaw);
         id = Math.abs(sx) > Math.abs(cz) ? (sx > 0 ? 41 : 42) : (cz > 0 ? 43 : 44);
       }
-      setBlock(bx, by, bz, id);
+      let rf = 0;
+      if (id === 73) { const fx = -Math.sin(yaw), fz = -Math.cos(yaw); rf = Math.abs(fx) > Math.abs(fz) ? (fx > 0 ? 0 : 1) : (fz > 0 ? 2 : 3); }   /* repeaters point away from you */
+      setBlock(bx, by, bz, id, rf);
       if (id >= 41 && id <= 44) getFurnace(bx, by, bz, true);
       if (!creative) { st.n--; if (st.n <= 0) slots[sel] = null; invChanged(); }
     }
@@ -2615,7 +2892,8 @@ const MOBS = {
   pig:    { name: 'Pig',    w: 0.9, h: 0.9,  hp: 10, speed: 1.5, hostile: false, drop: [126, 1, 3] },
   cow:    { name: 'Cow',    w: 0.9, h: 1.4,  hp: 10, speed: 1.3, hostile: false, drop: [127, 1, 3] },
   zombie: { name: 'Zombie', w: 0.6, h: 1.95, hp: 20, speed: 2.4, hostile: true,  drop: [130, 0, 2], dmg: 3 },
-  skeleton: { name: 'Skeleton', w: 0.6, h: 1.95, hp: 20, speed: 2.0, hostile: true, ranged: true, drop: [131, 0, 2], drop2: [132, 0, 2], dmg: 3 }
+  skeleton: { name: 'Skeleton', w: 0.6, h: 1.95, hp: 20, speed: 2.0, hostile: true, ranged: true, drop: [131, 0, 2], drop2: [132, 0, 2], dmg: 3 },
+  spider: { name: 'Spider', w: 1.4, h: 0.9, hp: 16, speed: 3.0, hostile: true, climber: true, leaper: true, neutralDay: true, noBurn: true, reach: 1.5, drop: [140, 0, 2], dmg: 2 }
 };
 const mobs = [];
 let targetMob = null, attackCool = 0, hostileT = 1, passiveT = 0;
@@ -2694,6 +2972,22 @@ function buildMob(type, weapon) {
       a.rotation.x = -1.4; arms.push(a);
       if (dx > 0) mpart(a, parts, [0.05, 0.06, 0.7], [0, -0.7, 0], [120, 84, 44]);   /* the bow */
     }
+  } else if (type === 'spider') {
+    const BD = [58, 42, 34], TH = [74, 56, 46], HD = [90, 68, 56], RED = [204, 32, 32], LG = [46, 34, 28];
+    mpart(root, parts, [0.7, 0.5, 0.8], [0, 0.55, -0.45], BD);
+    mpart(root, parts, [0.5, 0.4, 0.5], [0, 0.5, 0.15], TH);
+    const head = mpart(root, parts, [0.42, 0.38, 0.4], [0, 0.52, 0.55], HD, [0, 0, 0.1]);
+    headG = head;
+    mpart(head, parts, [0.09, 0.07, 0.02], [-0.12, 0.06, 0.305], RED);
+    mpart(head, parts, [0.09, 0.07, 0.02], [0.12, 0.06, 0.305], RED);
+    mpart(head, parts, [0.05, 0.04, 0.02], [-0.05, -0.04, 0.305], RED);
+    mpart(head, parts, [0.05, 0.04, 0.02], [0.05, -0.04, 0.305], RED);
+    for (const sd of [-1, 1]) for (const zz of [-0.25, -0.08, 0.08, 0.25]) {
+      const pv = mpart(root, parts, [0.01, 0.01, 0.01], [sd * 0.22, 0.5, zz], LG);   /* hip: swings, the leg below it is tilted out and down */
+      const lg = mpart(pv, parts, [0.9, 0.08, 0.08], [0, 0, 0], LG, [sd * 0.45, 0, 0]);
+      lg.rotation.z = sd * -0.6;
+      legs.push(pv);
+    }
   } else {
     const SK = [92, 142, 66];
     for (const dx of [-0.13, 0.13]) legs.push(mpart(root, parts, [0.25, 0.75, 0.25], [dx, 0.75, 0], [48, 48, 128], [0, -0.375, 0]));
@@ -2719,7 +3013,7 @@ function addMob(type, x, y, z, weapon) {
   const def = MOBS[type], b = buildMob(type, weapon === undefined ? -1 : weapon);
   const m = { type: type, def: def, weapon: weapon === undefined ? -1 : weapon, x: x, y: y, z: z, vx: 0, vy: 0, vz: 0, yaw: Math.random() * 6.283, hp: def.hp, onGround: false,
     group: b.root, parts: b.parts, legs: b.legs, head: b.head, hy: b.head.position.y, hyaw: 0, hpit: 0, walkT: Math.random() * 6, hurtT: 0, kb: 0, panic: 0, atk: 0.6, burn: 0,
-    wanderT: Math.random() * 3, wx: 0, wz: 0, lt: 0, bright: 1, sky: true };
+    wanderT: Math.random() * 3, leapT: 0, angry: false, wx: 0, wz: 0, lt: 0, bright: 1, sky: true };
   b.root.position.set(x, y, z); b.root.rotation.y = m.yaw;
   scene.add(b.root); mobs.push(m);
   return m;
@@ -2732,7 +3026,7 @@ function removeMob(m) {
 function clearHostiles() { for (let i = mobs.length - 1; i >= 0; i--) if (mobs[i].def.hostile) removeMob(mobs[i]); clearArrows(); }
 
 /* ---- world queries ---- */
-const mobSolid = (x, y, z) => { const cb = getBlock(x, y, z); return cb !== 0 && cb !== WATER && cb !== LAVA && cb !== BUSH && !(cb >= 36 && cb <= 40); };
+const mobSolid = (x, y, z) => { const cb = getBlock(x, y, z); return cb !== 0 && cb !== WATER && cb !== LAVA && cb !== BUSH && !(cb >= 36 && cb <= 40) && !PASS[cb]; };
 function mobHits(def, x, y, z) {
   const hw = def.w / 2;
   const x0 = Math.floor(x - hw), x1 = Math.floor(x + hw), z0 = Math.floor(z - hw), z1 = Math.floor(z + hw);
@@ -2870,7 +3164,9 @@ function trySpawnHostile() {
   if (!night && daylit(x, gy + 1, z)) return;
   if (Math.hypot(x + 0.5 - player.x, gy + 1 - player.y, z + 0.5 - player.z) < 12) return;
   if (lightNear(x, gy + 1, z)) return;
-  const type = Math.random() < (surface ? 0.3 : 0.45) ? 'skeleton' : 'zombie';
+  const r0 = Math.random();
+  const type = r0 < (surface ? 0.25 : 0.3) ? 'spider' : (r0 < (surface ? 0.5 : 0.6) ? 'skeleton' : 'zombie');
+  if (mobHits(MOBS[type], x + 0.5, gy + 1, z + 0.5)) return;
   let weapon = -1;   /* 15% of zombies carry a sword: wooden 45%, stone 30%, iron 20%, diamond 5% */
   if (type === 'zombie' && Math.random() < 0.15) { const r = Math.random(); weapon = r < 0.45 ? 0 : (r < 0.75 ? 1 : (r < 0.95 ? 2 : 3)); }
   addMob(type, x + 0.5, gy + 1, z + 0.5, weapon);
@@ -2911,8 +3207,8 @@ function attackMob(m) {
   if (dead) return;
   const st = slots[sel];
   let dmg = 1;
-  if (st && isSword(st.id)) dmg = 4 + (st.id - SWORD_BASE);          /* wooden 4, stone 5, iron 6, diamond 7 */
-  else { const t = toolOf(st); if (t) dmg = (t.type === 'axe' ? 3 : 2) + t.tier; }
+  if (st && isSword(st.id)) dmg = st.id === 139 ? 5.5 : st.id === 149 ? 4 : 4 + (st.id - SWORD_BASE);          /* wooden 4, stone 5, iron 6, diamond 7 */
+  else { const t = toolOf(st); if (t) dmg = (t.type === 'axe' ? 3 : 2) + (t.lvl !== undefined ? t.lvl : t.tier); }
   if (creative) dmg = 1000;
   else {
     if (attackCool > 0) return;
@@ -2931,7 +3227,7 @@ function attackMob(m) {
   const ks = sprinting ? 9 : 6;
   m.vx = kx / L * ks; m.vz = kz / L * ks; m.vy = 5.2; m.onGround = false; m.kb = 0.45;
   m.hurtT = 0.4; m.hp -= dmg;
-  if (!m.def.hostile) m.panic = 5;
+  if (!m.def.hostile) m.panic = 5; else m.angry = true;
   if (m.hp <= 0) killMob(m, true);
 }
 /* damage from an arrow (or anything that is not a melee swing) with a knockback push along (dx, dz) */
@@ -2939,7 +3235,7 @@ function hurtMob(m, dmg, dx, dz, ks) {
   const L = Math.hypot(dx, dz) || 1;
   m.vx = dx / L * ks; m.vz = dz / L * ks; m.vy = Math.max(m.vy, 3); m.onGround = false; m.kb = 0.35;
   m.hurtT = 0.4; m.hp -= dmg;
-  if (!m.def.hostile) m.panic = 5;
+  if (!m.def.hostile) m.panic = 5; else m.angry = true;
   if (m.hp <= 0) killMob(m, true);
 }
 /* ---- bow: hold right-click to draw (a full draw takes one second), let go to shoot ---- */
@@ -2984,6 +3280,7 @@ function updateMob(m, dt) {
   if (!chunkLoaded(m.x, m.z)) return false;
   const def = m.def, hostile = def.hostile;
   m.hurtT = Math.max(0, m.hurtT - dt);
+  m.leapT -= dt;
   const dxp = player.x - m.x, dzp = player.z - m.z, dyp = player.y - m.y, dh = Math.hypot(dxp, dzp);
   const bx = Math.floor(m.x), bz = Math.floor(m.z);
   const feet = getBlock(bx, Math.floor(m.y + 0.2), bz);
@@ -2991,7 +3288,7 @@ function updateMob(m, dt) {
   m.lt -= dt;
   if (m.lt <= 0) { m.lt = 0.5 + Math.random() * 0.3; m.sky = skyOpen(bx, Math.floor(m.y + def.h), bz); }
   /* zombies burn in sunlight, and everything burns in lava */
-  if (hostile && m.sky && daylight > 0.4 && !wet) m.burn = 1.5;
+  if (hostile && !def.noBurn && m.sky && daylight > 0.4 && !wet) m.burn = 1.5;
   if (feet === LAVA) { m.burn = 2; m.hp -= 4 * dt; }
   if (m.burn > 0) { m.burn -= dt; if (feet !== LAVA) m.hp -= dt; }
   if (m.hp <= 0 || m.y < -10) return true;
@@ -3001,7 +3298,7 @@ function updateMob(m, dt) {
     m.kb -= dt;
     const f = Math.exp(-dt * 3); m.vx *= f; m.vz *= f;
   } else {
-    if (hostile && !dead && dh < 28 && Math.abs(dyp) < 14) {
+    if (hostile && !dead && dh < 28 && Math.abs(dyp) < 14 && !(def.neutralDay && daylight > 0.45 && !m.angry)) {
       chasing = true;
       if (def.ranged) {
         /* skeletons keep their distance: close in when far, back off when near, sidestep in between */
@@ -3011,10 +3308,13 @@ function updateMob(m, dt) {
         m.atk -= dt;
         if (dh < 18 && m.atk <= 0 && clearShot(m)) { m.atk = 1.8 + Math.random() * 0.8; shootArrow(m); }
       } else {
-        if (dh > 0.85) { wantX = dxp / dh; wantZ = dzp / dh; sp = def.speed; }
+        if (dh > (def.reach ? def.reach - 0.3 : 0.85)) { wantX = dxp / dh; wantZ = dzp / dh; sp = def.speed; }
+        if (def.leaper && m.onGround && dh > 2.2 && dh < 5.5 && m.leapT <= 0 && Math.abs(dyp) < 2) {   /* spiders pounce */
+          m.leapT = 2.5; m.vx = dxp / dh * 7; m.vz = dzp / dh * 7; m.vy = 6.5; m.onGround = false; m.kb = 0.5;
+        }
         m.atk -= dt;
       }
-      if (!def.ranged && dh < 1.15 && dyp > -1.9 && dyp < 1.6 && m.atk <= 0) {
+      if (!def.ranged && dh < (def.reach || 1.15) && dyp > -1.9 && dyp < 1.6 && m.atk <= 0) {
         m.atk = 1.0;
         const L = dh || 1;
         if (!creative) {
@@ -3049,7 +3349,8 @@ function updateMob(m, dt) {
   else m.vy = Math.max(-40, m.vy - 28 * dt);
   const hx = mobMove(m, 'x', m.vx * dt); if (hx) m.vx = 0;
   const hz = mobMove(m, 'z', m.vz * dt); if (hz) m.vz = 0;
-  if ((hx || hz) && (m.onGround || wet) && (wantX || wantZ)) { m.vy = wet ? 5 : 8.4; m.onGround = false; }   /* hop over one-block steps */
+  if ((hx || hz) && (m.onGround || wet) && (wantX || wantZ) && !def.climber) { m.vy = wet ? 5 : 8.4; m.onGround = false; }   /* hop over one-block steps */
+  if (def.climber && (hx || hz) && (wantX || wantZ)) { m.vy = 3.2; m.onGround = false; }   /* spiders walk straight up walls */
   const hy = mobMove(m, 'y', m.vy * dt);
   if (hy) { m.onGround = m.vy < 0; m.vy = 0; } else m.onGround = false;
   /* mobs are solid to each other: overlapping ones are pushed apart (through mobMove, so never into walls) */
@@ -3068,7 +3369,7 @@ function updateMob(m, dt) {
   m.walkT += spd * dt * 2.2;
   const sw = Math.sin(m.walkT) * Math.min(1, spd / 1.5) * 0.9;
   for (let i = 0; i < m.legs.length; i++) {
-    const odd = m.legs.length === 2 ? i === 1 : (i === 1 || i === 2);
+    const odd = m.legs.length === 2 ? i === 1 : (m.legs.length === 8 ? i % 2 === 1 : (i === 1 || i === 2));
     m.legs[i].rotation.x = odd ? -sw : sw;
   }
   m.group.position.set(m.x, m.y, m.z); m.group.rotation.y = m.yaw;
@@ -3112,6 +3413,323 @@ function mobStep(dt) {
   }
 }
 
+/* ---- copper weathering: copper block, exposed, weathered, oxidized, slowly and only while its chunk is loaded ---- */
+const AGE_NEXT = { 57: 58, 58: 59, 59: 60 }, AGE_PREV = { 58: 57, 59: 58, 60: 59 }, AGE_MEAN = { 57: 240, 58: 360, 59: 480 };   /* average seconds per stage */
+let ageT = 0;
+function ageStep(dt) {
+  ageT += dt;
+  if (ageT < 4) return;
+  const step = ageT; ageT = 0;
+  const todo = [];
+  for (const ck of Object.keys(edits)) {
+    if (!chunks.has(ck)) continue;
+    const parts = ck.split(','), cx = +parts[0], cz = +parts[1], e = edits[ck];
+    for (const k in e) {
+      const id = e[k] & 255;
+      if (AGE_NEXT[id] && Math.random() < 1 - Math.exp(-step / AGE_MEAN[id])) {
+        const idx = +k;
+        todo.push([cx * CS + (idx & 15), idx >> 8, cz * CS + ((idx >> 4) & 15), AGE_NEXT[id]]);
+      }
+    }
+  }
+  for (const t of todo) setBlock(t[0], t[1], t[2], t[3]);
+}
+
+/* ---- wires: power runs along copper wire and fades by one for every block, from 15 at the source ---- */
+const SRC_ON = { 65: 1, 67: 1, 69: 1, 70: 1 };     /* lever on, button pressed, plate pressed, battery */
+const CONSUMER = { 62: 62, 63: 62, 71: 71, 72: 71 };   /* lamp and gate, either state -> the resting state */
+const CON_ON = { 62: 63, 71: 72 };
+const N6 = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+const btnT = new Map(), plateHold = new Map();
+const REPD = [[1, 0], [-1, 0], [0, 1], [0, -1]];   /* repeater facing -> (dx, dz) */
+const repQ = new Map();                              /* repeaters waiting to change state: key -> { want, t } */
+let swT = 0;
+function setWireLevel(x, y, z, lvl) {
+  const cx = x >> 4, cz = z >> 4, c = getChunk(cx, cz), idx = (x & 15) + ((z & 15) << 4) + (y << 8);
+  if (c.fl[idx] === lvl) return;
+  c.fl[idx] = lvl;
+  const k = key(cx, cz);
+  (edits[k] || (edits[k] = {}))[idx] = 61 | (lvl << 8);
+  dirty.add(c);
+}
+/* re-work every wire network that touches this cell: find the sources, spread power outward losing one per block, then switch lamps and gates */
+function netUpdate(x, y, z) {
+  const kk = (a, b, c) => a + ',' + b + ',' + c;
+  const seen = new Set(), cells = [], stack = [];
+  const add = (a, b, c) => { const k = kk(a, b, c); if (seen.has(k) || getBlock(a, b, c) !== 61) return; seen.add(k); cells.push([a, b, c]); stack.push([a, b, c]); };
+  for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) add(x + dx, y + dy, z + dz);
+  while (stack.length && cells.length < 4000) {
+    const c = stack.pop();
+    for (let dd = -1; dd <= 1; dd++) { add(c[0] + 1, c[1] + dd, c[2]); add(c[0] - 1, c[1] + dd, c[2]); add(c[0], c[1] + dd, c[2] + 1); add(c[0], c[1] + dd, c[2] - 1); }
+  }
+  const lvl = new Map(), buckets = []; for (let i = 0; i <= 15; i++) buckets.push([]);
+  for (const c of cells) {
+    let b = 0;
+    for (const d of N6) if (SRC_ON[getBlock(c[0] + d[0], c[1] + d[1], c[2] + d[2])]) { b = 15; break; }
+    if (!b) for (let f = 0; f < 4; f++) { const rx = c[0] - REPD[f][0], rz = c[2] - REPD[f][1]; if (getBlock(rx, c[1], rz) === 74 && (getF(rx, c[1], rz) & 3) === f) { b = 15; break; } }   /* a repeater facing this wire */
+    lvl.set(kk(c[0], c[1], c[2]), b);
+    if (b) buckets[15].push(c);
+  }
+  for (let L = 15; L >= 2; L--) for (let i = 0; i < buckets[L].length; i++) {
+    const c = buckets[L][i];
+    if (lvl.get(kk(c[0], c[1], c[2])) !== L) continue;
+    for (let dd = -1; dd <= 1; dd++) for (const d of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = c[0] + d[0], ny = c[1] + dd, nz = c[2] + d[1], nk = kk(nx, ny, nz);
+      if (lvl.has(nk) && lvl.get(nk) < L - 1) { lvl.set(nk, L - 1); buckets[L - 1].push([nx, ny, nz]); }
+    }
+  }
+  for (const c of cells) setWireLevel(c[0], c[1], c[2], lvl.get(kk(c[0], c[1], c[2])));
+  /* lamps and gates next to the network, or next to the cell that changed */
+  const cand = new Set(), around = (a, b, c) => { for (const d of N6) cand.add(kk(a + d[0], b + d[1], c + d[2])); };
+  around(x, y, z); for (const c of cells) around(c[0], c[1], c[2]);
+  for (const k of cand) {
+    const q = k.split(',').map(Number), id = getBlock(q[0], q[1], q[2]);
+    if (id === 73 || id === 74) {   /* repeaters read the cell behind them and drive the cell in front, a moment later */
+      const f = getF(q[0], q[1], q[2]) & 3, bx2 = q[0] - REPD[f][0], bz2 = q[2] - REPD[f][1], bid = getBlock(bx2, q[1], bz2);
+      const inp = !!SRC_ON[bid] || (bid === 61 && getF(bx2, q[1], bz2) >= 1) || (bid === 74 && (getF(bx2, q[1], bz2) & 3) === f);
+      const want = inp ? 74 : 73;
+      if (want !== id) { if (repQ.has(k)) repQ.get(k).want = want; else repQ.set(k, { want: want, t: 0.2 }); } else repQ.delete(k);
+      continue;
+    }
+    if (!CONSUMER[id]) continue;
+    let on = false;
+    for (const d of N6) { const nid = getBlock(q[0] + d[0], q[1] + d[1], q[2] + d[2]); if (SRC_ON[nid] || (nid === 61 && getF(q[0] + d[0], q[1] + d[1], q[2] + d[2]) >= 1)) { on = true; break; } }
+    if (!on) for (let f = 0; f < 4; f++) { const rx = q[0] - REPD[f][0], rz = q[2] - REPD[f][1]; if (getBlock(rx, q[1], rz) === 74 && (getF(rx, q[1], rz) & 3) === f) { on = true; break; } }
+    const want = on ? CON_ON[CONSUMER[id]] : CONSUMER[id];
+    if (want !== id) setBlock(q[0], q[1], q[2], want);
+  }
+}
+function repStep(step) {
+  for (const [k, e] of Array.from(repQ)) {
+    e.t -= step;
+    if (e.t > 0) continue;
+    repQ.delete(k);
+    const q = k.split(',').map(Number), cur = getBlock(q[0], q[1], q[2]);
+    if ((cur === 73 || cur === 74) && cur !== e.want) setBlock(q[0], q[1], q[2], e.want, getF(q[0], q[1], q[2]) & 3);
+  }
+}
+/* buttons pop back up and plates follow whoever stands on them (checked five times a second while their chunk is loaded) */
+function switchStep(dt) {
+  swT += dt;
+  if (swT < 0.2) return;
+  const step = swT; swT = 0;
+  repStep(step);
+  const todo = [];
+  for (const ck of Object.keys(edits)) {
+    if (!chunks.has(ck)) continue;
+    const parts = ck.split(','), cx = +parts[0], cz = +parts[1], e = edits[ck];
+    for (const k in e) {
+      const id = e[k] & 255;
+      if (id < 67 || id > 69 || id === 68) continue;
+      const idx = +k;
+      todo.push([cx * CS + (idx & 15), idx >> 8, cz * CS + ((idx >> 4) & 15), id]);
+    }
+  }
+  for (const ck of Object.keys(edits)) {
+    if (!chunks.has(ck)) continue;
+    const parts = ck.split(','), cx = +parts[0], cz = +parts[1], e = edits[ck];
+    for (const k in e) {
+      if ((e[k] & 255) !== 68) continue;
+      const idx = +k;
+      todo.push([cx * CS + (idx & 15), idx >> 8, cz * CS + ((idx >> 4) & 15), 68]);
+    }
+  }
+  for (const t of todo) {
+    const x = t[0], y = t[1], z = t[2], id = t[3], k = x + ',' + y + ',' + z;
+    if (id === 67) {
+      const left = (btnT.has(k) ? btnT.get(k) : 1.5) - step;
+      if (left <= 0) { btnT.delete(k); setBlock(x, y, z, 66); } else btnT.set(k, left);
+    } else {
+      let on = !dead && Math.abs(player.x - x - 0.5) < 0.75 && Math.abs(player.z - z - 0.5) < 0.75 && Math.abs(player.y - y) < 0.6;
+      if (!on) for (const m of mobs) if (Math.abs(m.x - x - 0.5) < 0.6 + m.def.w / 2 && Math.abs(m.z - z - 0.5) < 0.6 + m.def.w / 2 && Math.abs(m.y - y) < 0.6) { on = true; break; }
+      const hold = on ? 0.5 : Math.max(0, (plateHold.get(k) || 0) - step);
+      plateHold.set(k, hold);
+      const want = hold > 0 ? 69 : 68;
+      if (want !== id) setBlock(x, y, z, want);
+    }
+  }
+}
+
+/* ---- first-person hand: the held item built from its own pixels (so it has thickness), blocks as small cubes, a bare arm when empty ---- */
+const handGroup = new THREE.Group();
+camera.add(handGroup); scene.add(camera);
+const handMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthTest: false, depthWrite: false, fog: false, side: THREE.DoubleSide });
+const handTexMat = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, transparent: true, alphaTest: 0.3, depthTest: false, depthWrite: false, fog: false, side: THREE.DoubleSide });
+const handArmMat = new THREE.MeshBasicMaterial({ color: 0xd8a47a, transparent: true, depthTest: false, depthWrite: false, fog: false });
+let handId = -1, handKind = 'item', swingT = 0, swingPh = 0, bobT = 0;
+const handGeo = {};
+function spriteGeo(tile) {
+  if (handGeo['s' + tile]) return handGeo['s' + tile];
+  const img = actx.getImageData(tile * TS, 0, TS, TS).data;
+  const solid = (x, y) => x >= 0 && x < TS && y >= 0 && y < TS && img[(y * TS + x) * 4 + 3] > 60;
+  const P = [], C = [], I = [], ps = 1 / TS, th = 0.08;
+  const quad = (a, b, c, d, col, sh) => {
+    const v = P.length / 3;
+    P.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2], d[0], d[1], d[2]);
+    for (let k = 0; k < 4; k++) C.push(col[0] * sh, col[1] * sh, col[2] * sh);
+    I.push(v, v + 1, v + 2, v, v + 2, v + 3);
+  };
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    if (!solid(x, y)) continue;
+    const o = (y * TS + x) * 4, col = [img[o] / 255, img[o + 1] / 255, img[o + 2] / 255];
+    const x0 = (x - 8) * ps, x1 = x0 + ps, y1 = (8 - y) * ps, y0 = y1 - ps, z0 = -th / 2, z1 = th / 2;
+    quad([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], col, 1);
+    quad([x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], col, 0.7);
+    if (!solid(x - 1, y)) quad([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], col, 0.8);
+    if (!solid(x + 1, y)) quad([x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], col, 0.8);
+    if (!solid(x, y - 1)) quad([x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], col, 0.92);
+    if (!solid(x, y + 1)) quad([x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], col, 0.6);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3));
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(C), 3));
+  g.setIndex(new THREE.BufferAttribute(new Uint32Array(I), 1));
+  return (handGeo['s' + tile] = g);
+}
+function cubeGeo(id) {
+  if (handGeo['c' + id]) return handGeo['c' + id];
+  const f = DEFS[id].f, P = [], C = [], U = [], I = [];
+  /* origin, right, up and shade of each face, in the order +x, -x, +y, -y, +z, -z */
+  const FACE = [[[0.5, -0.5, 0.5], [0, 0, -1], [0, 1, 0], 0.8], [[-0.5, -0.5, -0.5], [0, 0, 1], [0, 1, 0], 0.8], [[-0.5, 0.5, 0.5], [1, 0, 0], [0, 0, -1], 1],
+    [[-0.5, -0.5, -0.5], [1, 0, 0], [0, 0, 1], 0.55], [[-0.5, -0.5, 0.5], [1, 0, 0], [0, 1, 0], 0.9], [[0.5, -0.5, -0.5], [-1, 0, 0], [0, 1, 0], 0.7]];
+  for (let i = 0; i < 6; i++) {
+    const F = FACE[i], o = F[0], u = F[1], v = F[2], tile = f[i], u0 = tile / NT + EPS, u1 = (tile + 1) / NT - EPS, b = P.length / 3;
+    for (const q of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
+      P.push(o[0] + u[0] * q[0] + v[0] * q[1], o[1] + u[1] * q[0] + v[1] * q[1], o[2] + u[2] * q[0] + v[2] * q[1]);
+      C.push(F[3], F[3], F[3]); U.push(q[0] ? u1 : u0, q[1] ? 1 - EPS : EPS);
+    }
+    I.push(b, b + 1, b + 2, b, b + 2, b + 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3));
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(C), 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(U), 2));
+  g.setIndex(new THREE.BufferAttribute(new Uint32Array(I), 1));
+  return (handGeo['c' + id] = g);
+}
+/* a shaded skin-coloured box for the bare arm, scaled long and thin by the mesh */
+function armGeo() {
+  if (handGeo.arm) return handGeo.arm;
+  const FACE = [[[0.5, -0.5, 0.5], [0, 0, -1], [0, 1, 0], 0.8], [[-0.5, -0.5, -0.5], [0, 0, 1], [0, 1, 0], 0.75], [[-0.5, 0.5, 0.5], [1, 0, 0], [0, 0, -1], 1],
+    [[-0.5, -0.5, -0.5], [1, 0, 0], [0, 0, 1], 0.55], [[-0.5, -0.5, 0.5], [1, 0, 0], [0, 1, 0], 0.9], [[0.5, -0.5, -0.5], [-1, 0, 0], [0, 1, 0], 0.7]];
+  const P = [], C = [], I = [], skin = [0.88, 0.66, 0.5];
+  for (let i = 0; i < 6; i++) {
+    const F = FACE[i], o = F[0], u = F[1], v = F[2], b = P.length / 3;
+    for (const q of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
+      P.push(o[0] + u[0] * q[0] + v[0] * q[1], o[1] + u[1] * q[0] + v[1] * q[1], o[2] + u[2] * q[0] + v[2] * q[1]);
+      C.push(skin[0] * F[3], skin[1] * F[3], skin[2] * F[3]);
+    }
+    I.push(b, b + 1, b + 2, b, b + 2, b + 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3));
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(C), 3));
+  g.setIndex(new THREE.BufferAttribute(new Uint32Array(I), 1));
+  return (handGeo.arm = g);
+}
+function rebuildHand(id) {
+  while (handGroup.children.length) handGroup.remove(handGroup.children[0]);
+  let mesh = null, tile = -1, cube = false;
+  if (id >= 100) tile = ITEM_INFO[id] ? ITEM_INFO[id].tile : -1;
+  else if (id > 0) { if (id === BUSH || (id >= 36 && id <= 40) || PASS[id] || FLATB[id]) tile = DEFS[id].f[0]; else cube = true; }
+  if (cube) { mesh = new THREE.Mesh(cubeGeo(id), handTexMat); mesh.scale.setScalar(0.38); handKind = 'cube'; }
+  else if (tile >= 0) { mesh = new THREE.Mesh(spriteGeo(tile), handMat); mesh.scale.set(-0.52, 0.52, 0.52); handKind = 'item'; }
+  else { mesh = new THREE.Mesh(armGeo(), handMat); mesh.scale.set(0.2, 0.2, 0.5); handKind = 'arm'; }
+  mesh.renderOrder = 1000; mesh.frustumCulled = false;
+  handGroup.add(mesh);
+}
+function updateHand(dt) {
+  const st = slots[sel], id = st ? st.id : 0;
+  if (id !== handId) { handId = id; rebuildHand(id); }
+  handGroup.visible = playing && !dead;
+  if (!handGroup.visible) return;
+  const br = Math.max(0.5, Math.min(1, 0.4 + 0.6 * daylight));
+  handMat.color.setScalar(br); handTexMat.color.setScalar(br); handArmMat.color.setRGB(0.85 * br, 0.64 * br, 0.48 * br);
+  const mining = held === 0 && !creative && mine.active && !targetMob;
+  if (swingT > 0) swingT = Math.max(0, swingT - dt / 0.3);
+  if (mining) swingPh = (swingPh + dt * 3.2) % 1; else if (swingT === 0) swingPh = 0;
+  const sw = (mining || swingT > 0) ? Math.sin(Math.PI * (mining ? swingPh : 1 - swingT)) : 0;
+  const moving = player.onGround && Math.hypot(player.vx, player.vz) > 0.6;
+  if (moving) bobT += dt * (sprinting ? 12 : 8);
+  const bobY = moving ? Math.sin(bobT) * 0.012 : 0, bobX = moving ? Math.cos(bobT * 0.5) * 0.01 : 0;
+  const pull = (drawT > 0) ? Math.min(1, drawT / BOW_FULL) : 0;
+  const eat = eatT > 0 ? Math.sin(eatT * 16) * 0.025 : 0;
+  let x0 = 0.56, y0 = -0.46, z0 = -0.9, rx = -0.05, ry = 0.3, rz = 0.1;
+  if (handKind === 'arm') { x0 = 0.6; y0 = -0.6; z0 = -0.85; rx = 0.35; ry = 0.5; rz = 0.15; }
+  else if (handKind === 'cube') { x0 = 0.6; y0 = -0.52; z0 = -0.9; rx = 0.4; ry = 0.6; rz = 0; }
+  handGroup.position.set(x0 + bobX - 0.22 * pull, y0 + bobY + eat - 0.12 * sw + 0.02 * pull, z0 + 0.1 * pull - 0.18 * sw);
+  handGroup.rotation.set(rx - 1.0 * sw + 0.2 * pull, ry + 0.55 * pull, rz - 0.35 * sw);
+}
+
+/* ---- thrown things: snowballs push mobs back, rocks hurt (and smash glass), a snowball packed around a rock does both ---- */
+const THROWN = {
+  141: { dmg: 0, sp: 18, g: 14, kb: 4, color: 0xf4f8ff, puff: 0xeef3ff },
+  142: { dmg: 2, sp: 17, g: 18, kb: 5, color: 0x86868c, puff: 0x9a9aa0, glass: true },
+  143: { dmg: 3, sp: 19, g: 13, kb: 6, color: 0xdfe6f4, puff: 0xeef3ff }
+};
+const balls = [], puffs = [], ballMats = {}, puffMats = {};
+const ballGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2), puffGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+for (const k in THROWN) { ballMats[k] = new THREE.MeshBasicMaterial({ color: THROWN[k].color }); puffMats[k] = new THREE.MeshBasicMaterial({ color: THROWN[k].puff }); }
+function snowPuff(x, y, z, id) {
+  for (let i = 0; i < 7; i++) {
+    const mesh = new THREE.Mesh(puffGeo, puffMats[id]);
+    mesh.position.set(x, y, z); scene.add(mesh);
+    puffs.push({ mesh: mesh, vx: (Math.random() - 0.5) * 2.4, vy: 0.6 + Math.random() * 2.2, vz: (Math.random() - 0.5) * 2.4, life: 0.5 + Math.random() * 0.3, max: 0.8 });
+  }
+}
+function throwItem() {
+  const st = slots[sel];
+  if (!st || !THROWN[st.id]) return;
+  const id = st.id, T = THROWN[id];
+  if (!creative) { st.n--; if (st.n <= 0) slots[sel] = null; invChanged(); }
+  const dx = -Math.sin(yaw) * Math.cos(pitch), dy = Math.sin(pitch), dz = -Math.cos(yaw) * Math.cos(pitch);
+  const mesh = new THREE.Mesh(ballGeo, ballMats[id]); scene.add(mesh);
+  balls.push({ id: id, mesh: mesh, x: player.x + dx * 0.5, y: player.y + EYE - 0.15 + dy * 0.5, z: player.z + dz * 0.5, vx: dx * T.sp, vy: dy * T.sp, vz: dz * T.sp, life: 6 });
+}
+function ballStep(dt) {
+  for (let i = puffs.length - 1; i >= 0; i--) {
+    const q = puffs[i];
+    q.life -= dt;
+    if (q.life <= 0) { scene.remove(q.mesh); puffs.splice(i, 1); continue; }
+    q.vy -= 9 * dt;
+    q.mesh.position.x += q.vx * dt; q.mesh.position.y += q.vy * dt; q.mesh.position.z += q.vz * dt;
+    q.mesh.scale.setScalar(Math.max(0.1, q.life / q.max));
+  }
+  for (let i = balls.length - 1; i >= 0; i--) {
+    const b = balls[i], T = THROWN[b.id];
+    b.life -= dt;
+    let gone = b.life <= 0 || !chunkLoaded(b.x, b.z);
+    if (!gone) {
+      b.vy -= T.g * dt;
+      const n = Math.max(1, Math.ceil(Math.hypot(b.vx, b.vy, b.vz) * dt / 0.3));
+      for (let s = 0; s < n && !gone; s++) {
+        b.x += b.vx * dt / n; b.y += b.vy * dt / n; b.z += b.vz * dt / n;
+        const bx = Math.floor(b.x), by = Math.floor(b.y), bz = Math.floor(b.z), bid = getBlock(bx, by, bz);
+        if (bid === WATER) { gone = true; continue; }
+        if (mobSolid(bx, by, bz)) {
+          snowPuff(b.x - b.vx * 0.01, b.y, b.z - b.vz * 0.01, b.id);
+          if (T.glass && bid === 9) { setBlock(bx, by, bz, 0); supportCheck(bx, by + 1, bz, true); torchSupport(bx, by, bz, true); }   /* a rock breaks glass */
+          gone = true; continue;
+        }
+        for (const m of mobs) {
+          const hw = m.def.w / 2 + 0.12;
+          if (Math.abs(b.x - m.x) < hw && Math.abs(b.z - m.z) < hw && b.y > m.y - 0.12 && b.y < m.y + m.def.h + 0.12) {
+            const L = Math.hypot(b.vx, b.vz) || 1;
+            m.vx = b.vx / L * T.kb; m.vz = b.vz / L * T.kb; m.vy = Math.max(m.vy, 2.5); m.onGround = false; m.kb = 0.3; m.hurtT = 0.3;
+            if (!m.def.hostile) m.panic = 4; else m.angry = true;
+            snowPuff(b.x, b.y, b.z, b.id);
+            gone = true;
+            if (T.dmg > 0) { m.hp -= T.dmg; if (m.hp <= 0) killMob(m, true); }
+            break;
+          }
+        }
+      }
+    }
+    if (gone) { scene.remove(b.mesh); balls.splice(i, 1); continue; }
+    b.mesh.position.set(b.x, b.y, b.z);
+  }
+}
+
 /* --------------------------------------------------------------------- loop */
 let last = performance.now(), fpsN = 0, fpsT = 0, saveT = 0, fps = 0;
 function frame(now) {
@@ -3129,6 +3747,9 @@ function frame(now) {
     attackCool = Math.max(0, attackCool - dt);
     mobStep(dt);
     bowStep(dt);
+    ageStep(dt);
+    switchStep(dt);
+    ballStep(dt);
     worldTime += dt;
     mineCool = Math.max(0, mineCool - dt);
     if (held === 0 && !creative && !targetMob) mineStep(dt);
@@ -3139,6 +3760,7 @@ function frame(now) {
   }
 
   if (!playing && drawT > 0) cancelBow();
+  updateHand(dt);
   camera.position.set(player.x, player.y + EYE, player.z);
   camera.rotation.set(pitch, yaw, 0);
   updateSky(headLava ? LAVA : (headWater ? WATER : 0));
