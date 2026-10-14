@@ -270,6 +270,8 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
         <div id="invgrid" class="slotgrid"></div>
         <p class="lbl">Hotbar</p>
         <div id="invhot" class="slotgrid"></div>
+        <p class="lbl">Off-hand (press Q to swap it with the held item)</p>
+        <div id="invoff" class="slotgrid"></div>
       </div>
       <div id="palwrap" class="invright">
         <p class="lbl">Creative items (the × slot deletes)</p>
@@ -298,7 +300,7 @@ if (typeof THREE === 'undefined') {
 }
 
 /* ---------------------------------------------------------------- constants */
-const CS = 16, H = 64, NT = 126, TS = 16, EPS = 0.0008, LEAVES = 7;
+const CS = 16, H = 64, NT = 182, TS = 16, EPS = 0.0008, LEAVES = 7;
 const HOT = 10, INV = 30, TOTAL = HOT + INV, STACK = 64;
 const WATER = 19, LAVA = 20, OBSIDIAN = 21, SNOW = 22, ICE = 23, SEA = 20, LAVA_Y = 6, GEN = 3, CACTUS = 34, BUSH = 35;
 const isFluid = (id) => id === WATER || id === LAVA;
@@ -308,8 +310,8 @@ const LOGAXIS = { 6: [10, 11], 24: [25, 26], 27: [28, 29], 50: [51, 52] };      
 const TORCHMAP = { 37: 36, 38: 36, 39: 36, 40: 36 };                               /* wall torches -> standing torch */
 const FURNMAP = { 42: 41, 43: 41, 44: 41, 45: 41, 46: 41, 47: 41, 48: 41 };        /* facings and lit furnaces -> furnace */
 const ONOFF = { 63: 62, 65: 64, 67: 66, 69: 68, 72: 71, 74: 73 };                           /* powered state -> resting state */
-const PASS = []; [61, 64, 65, 66, 67, 68, 69, 72, 73, 74].forEach((i) => { PASS[i] = 1; });   /* blocks you walk through */
-const FLATB = { 61: 1, 64: 1, 65: 1, 66: 1, 67: 1, 68: 1, 69: 1, 73: 1, 74: 1 };                    /* sit on the block below and fall off without it */
+const PASS = []; [61, 64, 65, 66, 67, 68, 69, 72, 73, 74].forEach((i) => { PASS[i] = 1; }); [84, 85, 86, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99].forEach((i) => { PASS[i] = 1; });   /* blocks you walk through */
+const FLATB = { 98: 1, 99: 1, 93: 1, 94: 1, 95: 1, 96: 1, 97: 1, 91: 1, 92: 1, 88: 1, 89: 1, 90: 1, 84: 1, 85: 1, 86: 1, 61: 1, 64: 1, 65: 1, 66: 1, 67: 1, 68: 1, 69: 1, 73: 1, 74: 1 };                    /* sit on the block below and fall off without it */
 const NETB = { 61: 1, 64: 1, 65: 1, 66: 1, 67: 1, 68: 1, 69: 1, 70: 1, 73: 1, 74: 1 };              /* changing these re-works the power network */
 const canon = (id) => LOGMAP[id] || TORCHMAP[id] || FURNMAP[id] || ONOFF[id] || id;
 const EMIT_LV = (id) => id === LAVA ? 15 : id === 63 ? 14 : ((id >= 36 && id <= 40) ? 14 : ((id >= 45 && id <= 48) ? 13 : 0));   /* light a block gives off */
@@ -320,14 +322,15 @@ const NAMES = ['Air', 'Grass', 'Dirt', 'Stone', 'Cobblestone', 'Planks', 'Log', 
   'Spruce Leaves', 'Birch Leaves', 'Cactus', 'Dead Bush',
   'Torch', 'Torch', 'Torch', 'Torch', 'Torch', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Gravel',
   'Acacia Log', 'Acacia Log', 'Acacia Log', 'Acacia Planks', 'Acacia Leaves', 'Savanna Grass', 'Copper Ore', 'Copper Block', 'Exposed Copper', 'Weathered Copper', 'Oxidized Copper',
-  'Copper Wire', 'Lamp', 'Lamp', 'Lever', 'Lever', 'Button', 'Button', 'Pressure Plate', 'Pressure Plate', 'Battery', 'Copper Gate', 'Copper Gate', 'Repeater', 'Repeater', 'Gold Ore', 'Gold Block', 'Coal Block', 'Iron Block', 'Diamond Block'];
+  'Copper Wire', 'Lamp', 'Lamp', 'Lever', 'Lever', 'Button', 'Button', 'Pressure Plate', 'Pressure Plate', 'Battery', 'Copper Gate', 'Copper Gate', 'Repeater', 'Repeater', 'Gold Ore', 'Gold Block', 'Coal Block', 'Iron Block', 'Diamond Block', 'Anvil', 'Clay', 'Ruby Ore', 'Ruby Block', 'Tomato Plant', 'Lettuce', 'Carrot Plant', 'Farmland', 'Tomato Seedling', 'Lettuce Seedling', 'Carrot Seedling', 'Wheat Plant', 'Wheat Seedling', 'Bush', 'Dandelion', 'Poppy', 'Cornflower', 'Pink Tulip', 'Seagrass', 'Kelp'];
 const TRANSP = [0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
   1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1,
-  1, 1, 0, 0, 0, 0, 0];
+  1, 1, 0, 0, 0, 0, 0, 1];
+TRANSP[84] = TRANSP[85] = TRANSP[86] = TRANSP[88] = TRANSP[89] = TRANSP[90] = TRANSP[91] = TRANSP[92] = TRANSP[93] = TRANSP[94] = TRANSP[95] = TRANSP[96] = TRANSP[97] = TRANSP[98] = TRANSP[99] = 1;   /* the vegetable plants let light through */
 /* f = tile for each face: +x, -x, +y, -y, +z, -z */
 const mk = (top, side, bottom) => ({ f: [side, side, top, bottom, side, side] });
 const DEFS = [
@@ -367,7 +370,15 @@ const DEFS = [
   mk(106, 106, 106), mk(107, 107, 107),               /* 71 copper gate, 72 open gate (you walk through it) */
   mk(108, 108, 108), mk(109, 109, 109),               /* 73 repeater, 74 repeater on (facing is kept in the flag byte) */
   mk(114, 114, 114), mk(115, 115, 115),               /* 75 gold ore, 76 gold block */
-  mk(123, 123, 123), mk(124, 124, 124), mk(125, 125, 125)   /* 77 coal block, 78 iron block, 79 diamond block */
+  mk(123, 123, 123), mk(124, 124, 124), mk(125, 125, 125),   /* 77 coal block, 78 iron block, 79 diamond block */
+  mk(127, 127, 127)                                   /* 80 anvil (the mesher draws it as three boxes; the icon is tile 126) */
+  , mk(128, 128, 128)                                 /* 81 clay */
+  , mk(132, 132, 132)                                 /* 82 ruby ore */
+  , mk(139, 139, 139), mk(140, 140, 140), mk(141, 141, 141), mk(142, 142, 142)   /* 83 ruby block, 84 tomato plant, 85 lettuce, 86 carrot plant */
+  , mk(155, 2, 2), mk(156, 156, 156), mk(157, 157, 157), mk(158, 158, 158)   /* 87 farmland, 88 to 90 seedlings */
+  , mk(163, 163, 163), mk(164, 164, 164)   /* 91 wheat plant, 92 wheat seedling */
+  , mk(173, 173, 173), mk(174, 174, 174), mk(175, 175, 175), mk(176, 176, 176), mk(177, 177, 177)   /* 93 bush, 94 dandelion, 95 poppy, 96 cornflower, 97 pink tulip */
+  , mk(178, 178, 178), mk(179, 179, 179)   /* 98 seagrass, 99 kelp */
 ];
 
 /* items: 100 to 103 are materials, 110 to 121 are tools (type * 4 + tier) */
@@ -394,30 +405,45 @@ ITEM_INFO[126] = { name: 'Raw Pork', tile: 71 }; ITEM_INFO[127] = { name: 'Raw B
 ITEM_INFO[128] = { name: 'Cooked Pork', tile: 73 }; ITEM_INFO[129] = { name: 'Cooked Beef', tile: 74 };
 ITEM_INFO[130] = { name: 'Rotten Flesh', tile: 75 }; ITEM_INFO[131] = { name: 'Bone', tile: 76 }; ITEM_INFO[132] = { name: 'Arrow', tile: 77 }; ITEM_INFO[133] = { name: 'Bow', tile: 78 }; ITEM_INFO[134] = { name: 'Raw Copper', tile: 88 }; ITEM_INFO[135] = { name: 'Copper Ingot', tile: 89 }; ITEM_INFO[140] = { name: 'String', tile: 110 }; ITEM_INFO[141] = { name: 'Snowball', tile: 111 }; ITEM_INFO[144] = { name: 'Raw Gold', tile: 116 }; ITEM_INFO[145] = { name: 'Gold Ingot', tile: 117 }; ITEM_INFO[150] = { name: 'Golden Apple', tile: 122 };
 ['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[146 + i] = { name: 'Golden ' + nm, tile: 118 + i }; }); ITEM_INFO[142] = { name: 'Rock', tile: 112 }; ITEM_INFO[143] = { name: 'Packed Snowball', tile: 113 };
+ITEM_INFO[151] = { name: 'Clay Ball', tile: 129 }; ITEM_INFO[152] = { name: 'Brick', tile: 130 }; ITEM_INFO[153] = { name: 'Clay Bowl', tile: 131 };
+ITEM_INFO[154] = { name: 'Ruby', tile: 133 }; ITEM_INFO[159] = { name: 'Knife', tile: 138 };
+[['Tomato', 143], ['Lettuce', 144], ['Carrot', 145], ['Sliced Tomato', 146], ['Sliced Lettuce', 147], ['Sliced Carrot', 148], ['Tomato Salad', 149], ['Carrot Salad', 150], ['Garden Salad', 151], ['Raw Chicken', 152], ['Cooked Chicken', 153], ['Feather', 154]].forEach((e, i) => { ITEM_INFO[160 + i] = { name: e[0], tile: e[1] }; });
+[['Hoe', 159], ['Egg', 160], ['Fried Egg', 161], ['Veggie Pie', 162]].forEach((e, i) => { ITEM_INFO[172 + i] = { name: e[0], tile: e[1] }; });
+[['Wheat', 165], ['Flour', 166], ['Bread', 167], ['Bowl of Milk', 168], ['Cheese', 169], ['Dough', 170], ['Raw Pizza', 171], ['Pizza', 172]].forEach((e, i) => { ITEM_INFO[176 + i] = { name: e[0], tile: e[1] }; });
+[['Kelp', 180], ['Dried Kelp', 181]].forEach((e, i) => { ITEM_INFO[184 + i] = { name: e[0], tile: e[1] }; });
+['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[155 + i] = { name: 'Ruby ' + nm, tile: 134 + i }; });
 ['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[136 + i] = { name: 'Copper ' + nm, tile: 93 + i }; });
-const isSword = (id) => (id >= SWORD_BASE && id < SWORD_BASE + 4) || id === 139 || id === 149;
-const isTool = (id) => (id >= TOOL_BASE && id < TOOL_BASE + 12) || (id >= 136 && id <= 138) || (id >= 146 && id <= 148);   /* 146 to 149: golden pickaxe, axe, shovel, sword */   /* 136 to 139 are the copper pickaxe, axe, shovel and sword */
-const isDur = (id) => isTool(id) || isSword(id) || id === 133;
+const isSword = (id) => (id >= SWORD_BASE && id < SWORD_BASE + 4) || id === 139 || id === 149 || id === 158 || id === 159;   /* 158 ruby sword, 159 knife */
+const isTool = (id) => (id >= TOOL_BASE && id < TOOL_BASE + 12) || (id >= 136 && id <= 138) || (id >= 146 && id <= 148) || (id >= 155 && id <= 157);   /* 146 to 149: golden pickaxe, axe, shovel, sword */   /* 136 to 139 are the copper pickaxe, axe, shovel and sword */
+const isDur = (id) => isTool(id) || isSword(id) || id === 133 || id === 172;
 function toolOf(st) {
   if (!st || !isTool(st.id)) return null;
+  if (st.id >= 155) return { type: TOOL_TYPES[st.id - 155], tier: 2, lvl: 2.5, speed: 7 };   /* ruby: iron's reach, between iron and diamond in speed */
   if (st.id >= 146) return { type: TOOL_TYPES[st.id - 146], tier: 0, lvl: 0, speed: 12 };   /* gold: very fast, wood's reach, breaks almost at once */
   if (st.id >= 136) return { type: TOOL_TYPES[st.id - 136], tier: 1, lvl: 1.5, speed: 5 };   /* copper: stone's reach, a bit faster than stone */
   const k = st.id - TOOL_BASE;
   return { type: TOOL_TYPES[(k / 4) | 0], tier: k % 4 };
 }
-const toolMax = (id) => (id >= 146 && id <= 149) ? 32 : (id >= 136 && id <= 139) ? 190 : id === 133 ? 385 : TIERS[isSword(id) ? id - SWORD_BASE : (id - TOOL_BASE) % 4].dur;
+const toolMax = (id) => (id >= 155 && id <= 158) ? 750 : id === 159 ? 90 : id === 172 ? 120 : (id >= 146 && id <= 149) ? 32 : (id >= 136 && id <= 139) ? 190 : id === 133 ? 385 : TIERS[isSword(id) ? id - SWORD_BASE : (id - TOOL_BASE) % 4].dur;
 const stackMax = (id) => (isDur(id) || id === 106 || id === 107) ? 1 : (id === 105 ? 16 : STACK);
 const itemName = (id) => id < 100 ? NAMES[id] : ITEM_INFO[id].name;
-const itemTile = (id) => id < 100 ? DEFS[id].f[0] : ITEM_INFO[id].tile;
-const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79];
+const itemTile = (id) => id === 80 ? 126 : id < 100 ? DEFS[id].f[0] : ITEM_INFO[id].tile;
+const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99];
 const PALETTE = PLACEABLE.concat([100, 101, 102, 103, 104, 105, 106, 107, 108, 109]);
 for (let i = 0; i < 12; i++) PALETTE.push(TOOL_BASE + i);
 for (let i = 0; i < 4; i++) PALETTE.push(SWORD_BASE + i);
-[126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150].forEach((id) => PALETTE.push(id));
-const validItem = (id) => Number.isInteger(id) && (PLACEABLE.indexOf(id) >= 0 || (id >= 100 && id <= 109) || isDur(id) || (id >= 126 && id <= 135) || id === 140 || (id >= 141 && id <= 145) || id === 150);
+[126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185].forEach((id) => PALETTE.push(id));
+const validItem = (id) => Number.isInteger(id) && (PLACEABLE.indexOf(id) >= 0 || (id >= 100 && id <= 109) || isDur(id) || (id >= 126 && id <= 135) || id === 140 || (id >= 141 && id <= 145) || id === 150 || (id >= 151 && id <= 154) || (id >= 160 && id <= 185));
 function makeStack(id, n) { const s = { id: id, n: n }; if (isDur(id)) s.d = toolMax(id); return s; }
 /* food restores hunger points (20 = full bar) and saturation */
-const FOOD = { 150: { food: 4, sat: 9.6, heal: 8 }, 104: { food: 4, sat: 2.4 }, 126: { food: 3, sat: 1.8 }, 127: { food: 3, sat: 1.8 }, 128: { food: 8, sat: 12.8 }, 129: { food: 8, sat: 12.8 }, 130: { food: 2, sat: 0.4 } };
+const FOOD = { 150: { food: 4, sat: 9.6, heal: 8 }, 104: { food: 4, sat: 2.4 }, 126: { food: 3, sat: 1.8 }, 127: { food: 3, sat: 1.8 }, 128: { food: 8, sat: 12.8 }, 129: { food: 8, sat: 12.8 }, 130: { food: 2, sat: 0.4 },
+  160: { food: 2, sat: 2.4 }, 161: { food: 2, sat: 1.8 }, 162: { food: 3, sat: 3.6 }, 163: { food: 3, sat: 3.6 }, 164: { food: 2, sat: 2.4 }, 165: { food: 4, sat: 4.8 },
+  166: { food: 7, sat: 9, heal: 1, bowl: 1, regen: 10 }, 167: { food: 7, sat: 9, heal: 1, bowl: 1, speed: 45 }, 168: { food: 11, sat: 14.4, heal: 1, bowl: 1, regen: 12, speed: 45 },
+  169: { food: 2, sat: 1.2 }, 170: { food: 6, sat: 7.2 },
+  174: { food: 4, sat: 4.8 }, 175: { food: 12, sat: 16, heal: 2, regen: 15, speed: 60 },
+  178: { food: 5, sat: 6 }, 180: { food: 3, sat: 3.6 }, 183: { food: 14, sat: 19, heal: 2, regen: 10 },
+  184: { food: 1, sat: 0.6 }, 185: { food: 2, sat: 1.2 } };
+let fxRegen = 0, fxSpeed = 0, fxTick = 0;   /* salad bonuses: seconds of regeneration and of extra speed left */
 
 /* block hardness (seconds, like Minecraft), best tool, and the pickaxe tier needed for a drop (-1 means none) */
 const BINFO = [];
@@ -431,7 +457,7 @@ bi(24, 2, 'axe', -1); bi(27, 2, 'axe', -1); bi(30, 2, 'axe', -1); bi(31, 2, 'axe
 bi(32, 0.2, null, -1); bi(33, 0.2, null, -1); bi(34, 0.4, null, -1); bi(35, 0, null, -1);
 bi(36, 0, null, -1); bi(41, 3.5, 'pick', 0); bi(49, 0.6, 'shovel', -1);
 bi(50, 2, 'axe', -1); bi(51, 2, 'axe', -1); bi(52, 2, 'axe', -1); bi(53, 2, 'axe', -1); bi(54, 0.2, null, -1); bi(55, 0.6, 'shovel', -1); bi(56, 3, 'pick', 1); bi(57, 3, 'pick', 0); bi(58, 3, 'pick', 0); bi(59, 3, 'pick', 0); bi(60, 3, 'pick', 0);
-bi(61, 0, null, -1); bi(62, 0.5, null, -1); bi(64, 0.5, null, -1); bi(66, 0.5, null, -1); bi(68, 0.5, null, -1); bi(70, 3, 'pick', 0); bi(71, 3, 'pick', 0); bi(73, 0.3, null, -1); bi(75, 3, 'pick', 2); bi(76, 3, 'pick', 1); bi(77, 5, 'pick', 0); bi(78, 5, 'pick', 1); bi(79, 5, 'pick', 2);
+bi(61, 0, null, -1); bi(62, 0.5, null, -1); bi(64, 0.5, null, -1); bi(66, 0.5, null, -1); bi(68, 0.5, null, -1); bi(70, 3, 'pick', 0); bi(71, 3, 'pick', 0); bi(73, 0.3, null, -1); bi(75, 3, 'pick', 2); bi(76, 3, 'pick', 1); bi(77, 5, 'pick', 0); bi(80, 5, 'pick', 0); bi(78, 5, 'pick', 1); bi(79, 5, 'pick', 2); bi(81, 0.6, 'shovel', -1); bi(82, 3, 'pick', 2); bi(83, 5, 'pick', 2); bi(84, 0, null, -1); bi(85, 0, null, -1); bi(86, 0, null, -1); bi(87, 0.6, 'shovel', -1); bi(88, 0, null, -1); bi(89, 0, null, -1); bi(90, 0, null, -1); bi(91, 0, null, -1); bi(92, 0, null, -1); bi(93, 0, null, -1); bi(94, 0, null, -1); bi(95, 0, null, -1); bi(96, 0, null, -1); bi(97, 0, null, -1); bi(98, 0, null, -1); bi(99, 0, null, -1);
 const binfo = (id) => BINFO[canon(id)];
 /* what a block turns into when you mine it (no furnace yet, so iron ore gives ingots) */
 function dropOf(id) {
@@ -447,6 +473,12 @@ function dropOf(id) {
   if (id === 16) return 103;
   if (id === 56) return 134;
   if (id === 75) return 144;
+  if (id === 82) return 154;
+  if (id >= 84 && id <= 86) return 160 + id - 84;   /* a plant gives the whole vegetable */
+  if (id >= 88 && id <= 90) return 160 + id - 88;   /* a seedling gives its vegetable back */
+  if (id === 87) return 2;   /* farmland turns back into dirt */
+  if (id === 99) return 184;   /* kelp gives kelp */
+  if (id === 91 || id === 92) return 176;   /* wheat */
   if (id === 18) return 0;
   return id;
 }
@@ -487,6 +519,7 @@ shapeless([3], 66, 1);                                               /* button: 
 shaped([[3, 3]], 68, 1);                                             /* pressure plate: two stone */
 shaped([[135, 135, 135], [135, 101, 135], [135, 135, 135]], 70, 1);  /* battery: coal in a ring of copper */
 shaped([[135, 135], [135, 135]], 71, 1);                             /* copper gate */
+shaped([[78, 78, 78], [0, 102, 0], [102, 102, 102]], 80, 1);        /* anvil: three iron blocks over an ingot on a base of ingots */
 shaped([[135, 0, 135], [3, 3, 3]], 73, 1);                         /* repeater: two copper ingots over three stone */
 { const G = 145, S = 100;   /* gold: block, tools, golden apple */
   shaped([[G, G, G], [G, G, G], [G, G, G]], 76, 1); shapeless([76], 145, 9);
@@ -502,6 +535,27 @@ shaped([[142, 142], [142, 142]], 4, 1);                              /* and 4 ro
 shapeless([141, 142], 143, 1);                                       /* a snowball packed around a rock */
 shapeless([22], 141, 4);                                           /* a snow block makes 4 snowballs */
 shaped([[141, 141], [141, 141]], 22, 1);                             /* and 4 snowballs make a snow block */
+shaped([[151, 151], [151, 151]], 81, 1);                             /* 4 clay balls make a clay block */
+shapeless([81], 151, 4);                                             /* and a clay block breaks back into 4 */
+shaped([[152, 152], [152, 152]], 13, 1);                             /* 4 bricks make a Bricks block */
+shapeless([13], 152, 4);                                             /* and back again */
+shaped([[151, 0, 151], [0, 151, 0]], 153, 2);                        /* 3 clay balls in a V make 2 clay bowls */
+{ const M = 154, S = 100;   /* ruby: pickaxe, axe, shovel, sword */
+  shaped([[M, M, M], [0, S, 0], [0, S, 0]], 155, 1); shaped([[M, M], [M, S], [0, S]], 156, 1);
+  shaped([[M], [S], [S]], 157, 1); shaped([[M], [M], [S]], 158, 1); }
+shaped([[102], [100]], 159, 1);                                      /* knife: an iron ingot over a stick */
+shaped([[135], [100]], 159, 1);                                      /* or a copper ingot over a stick */
+shaped([[154, 154, 154], [154, 154, 154], [154, 154, 154]], 83, 1); shapeless([83], 154, 9);   /* ruby block: nine rubies, and back */
+shapeless([153, 163, 164], 166, 1);          /* tomato salad: a bowl, sliced tomato and sliced lettuce */
+shapeless([153, 165, 165], 167, 1);          /* carrot salad: a bowl and two sliced carrots */
+shapeless([153, 163, 164, 165], 168, 1);     /* garden salad: a bowl and all three slices */
+shaped([[171], [100]], 132, 4);              /* a feather over a stick: 4 arrows */
+shaped([[4, 4], [0, 100], [0, 100]], 172, 1);   /* hoe: two cobblestone over two sticks */
+shapeless([173, 163, 164, 165], 175, 1);         /* veggie pie: an egg and all three slices */
+shapeless([176, 176], 177, 1);                /* flour: two wheat ground up */
+shaped([[176, 176, 176]], 178, 1);           /* bread: three wheat in a row */
+shapeless([177, 177, 173], 181, 2);          /* dough: two flour and an egg make 2 */
+shapeless([181, 163, 163, 180], 182, 1);     /* raw pizza: dough, two sliced tomatoes and cheese (bake it in a furnace) */
 shaped([[131], [100]], 132, 4);                                   /* bone over a stick: 4 arrows */
 shaped([[0, 100, 131], [100, 0, 131], [0, 100, 131]], 133, 1);
 shaped([[0, 100, 140], [100, 0, 140], [0, 100, 140]], 133, 1);    /* or the proper way: three sticks and three string */    /* bow: three sticks and three bones (the bones are the string) */
@@ -1114,6 +1168,281 @@ renderer.setSize(window.innerWidth, window.innerHeight);
   }
   [[5, 5], [10, 9], [7, 12], [12, 4]].forEach((c) => set(125, c[0], c[1], [255, 255, 255]));
 })();
+
+/* ---- anvil: icon (tile 126) and iron texture (tile 127) ---- */
+(function paintAnvilArt() {
+  const rnd = mulberry32(1212);
+  const set = (t, x, y, c) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) px(t, x, y, c[0], c[1], c[2]); };
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const v = (rnd() - 0.5) * 16, streak = ((x * 5 + y * 3) % 9) === 0;
+    set(127, x, y, streak ? [104 + v, 104 + v, 112 + v] : [72 + v, 72 + v, 80 + v]);
+  }
+  const body = [74, 74, 84], hi = [138, 138, 150], dk = [46, 46, 54];
+  for (let y = 3; y <= 6; y++) for (let x = (y === 3 ? 2 : 1); x <= 14; x++) set(126, x, y, y === 3 ? hi : (y === 6 ? dk : body));
+  for (let y = 4; y <= 5; y++) set(126, 0, y, body);
+  for (let y = 7; y <= 10; y++) for (let x = 5; x <= 10; x++) set(126, x, y, x === 5 ? hi : (x === 10 ? dk : body));
+  for (let y = 11; y <= 13; y++) for (let x = 3; x <= 12; x++) set(126, x, y, y === 11 ? hi : body);
+  for (let x = 2; x <= 13; x++) set(126, x, 14, dk);
+})();
+/* ---- clay (tiles 128 to 131): clay block, clay ball, brick, clay bowl ---- */
+(function paintClayArt() {
+  const rnd = mulberry32(5151);
+  const set = (t, x, y, c, v) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) { v = v || 0; px(t, x, y, c[0] + v, c[1] + v, c[2] + v); } };
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const fleck = rnd() < 0.07;
+    set(128, x, y, fleck ? [146, 152, 166] : [160, 166, 180], (rnd() - 0.5) * 10);
+  }
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    if (Math.hypot(x - 7.5, y - 8) > 5.4) continue;
+    const hi = Math.hypot(x - 5.5, y - 6) < 2.2, lo = (x - 7.5) + (y - 8) > 3.6;
+    set(129, x, y, hi ? [196, 202, 214] : (lo ? [120, 126, 142] : [160, 166, 180]), (rnd() - 0.5) * 8);
+  }
+  for (let y = 5; y <= 10; y++) for (let x = 2; x <= 13; x++) {
+    const hi = y === 5, lo = y === 10 || x === 13;
+    set(130, x, y, hi ? [214, 120, 94] : (lo ? [124, 50, 40] : [178, 80, 60]), (rnd() - 0.5) * 12);
+  }
+  [[4, 7], [8, 8], [11, 7]].forEach((c) => set(130, c[0], c[1], [140, 58, 44]));
+  const bowl = ['................', '................', '................', '................', '................', '...RRRRRRRRRR...', '..RDDDDDDDDDDR..', '..BBBBBBBBBBBB..', '...BBBBBBBBBS...', '...BBBBBBBBBS...', '....BBBBBBSS....', '.....SSSSSS.....', '................', '................', '................', '................'];
+  const bc = { R: [200, 144, 100], D: [90, 58, 42], B: [166, 108, 74], S: [122, 78, 54] };
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) { const c = bc[bowl[y].charAt(x)]; if (c) set(131, x, y, c, (rnd() - 0.5) * 6); }
+})();
+/* ---- ruby (tiles 132 to 138): ore, gem, pickaxe, axe, shovel, sword, knife ---- */
+(function paintRubyArt() {
+  const rnd = mulberry32(6262);
+  const set = (t, x, y, c) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) px(t, x, y, c[0], c[1], c[2]); };
+  actx.drawImage(atlas, 3 * TS, 0, TS, TS, 132 * TS, 0, TS, TS);   /* the ore starts as a stone tile */
+  [[3, 4], [4, 4], [4, 5], [10, 3], [11, 3], [11, 4], [6, 9], [7, 9], [7, 10], [12, 8], [13, 8], [2, 12], [3, 12], [9, 12], [10, 12], [10, 13]].forEach((c) => set(132, c[0], c[1], rnd() < 0.6 ? [206, 28, 56] : [255, 92, 112]));
+  const gem = { D: [122, 12, 34], C: [214, 30, 60], W: [255, 160, 172] };
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) { const c = gem[ART.diamond[y].charAt(x)]; if (c) set(133, x, y, c); }
+  const M = [226, 40, 64], D = [138, 16, 36];
+  const col = (t, rows) => { for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) { const ch = rows[y].charAt(x); if (ch === '.') continue; const c = ch === 'M' ? M : (ch === 'D' ? D : ART_COL[ch]); if (c) set(t, x, y, c); } };
+  col(134, ART.pick); col(135, ART.axe); col(136, ART.shovel);
+  for (let i = 0; i < 9; i++) { const x = 13 - i, y = 1 + i; set(137, x - 1, y, D); set(137, x, y, M); set(137, x + 1, y, D); }
+  set(137, 14, 0, M); set(137, 14, 1, D);
+  [[2, 8], [3, 9], [4, 10], [5, 11], [6, 12]].forEach((c) => set(137, c[0], c[1], [92, 92, 100]));
+  [[3, 11], [2, 12], [1, 13]].forEach((c) => set(137, c[0], c[1], [150, 110, 60]));
+  set(137, 4, 11, [104, 76, 40]); set(137, 3, 12, [104, 76, 40]); set(137, 2, 13, [104, 76, 40]); set(137, 0, 14, [60, 60, 66]);
+  for (let i = 0; i < 6; i++) { set(138, 11 - i, 3 + i, [214, 214, 222]); set(138, 12 - i, 3 + i, [150, 150, 160]); }
+  set(138, 12, 3, [240, 240, 244]);
+  [[4, 8], [6, 10]].forEach((c) => set(138, c[0], c[1], [92, 92, 100]));
+  [[5, 9], [4, 10], [3, 11], [2, 12]].forEach((c) => set(138, c[0], c[1], [150, 110, 60]));
+  [[5, 10], [4, 11], [3, 12], [1, 13]].forEach((c) => set(138, c[0], c[1], [104, 76, 40]));
+})();
+/* ---- ruby block, vegetables, salads and chicken (tiles 139 to 154) ---- */
+(function paintGardenArt() {
+  const rnd = mulberry32(7373);
+  const set = (t, x, y, c, v) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) { v = v || 0; px(t, x, y, c[0] + v, c[1] + v, c[2] + v); } };
+  const disc = (t, cx, cy, r, c, hi, lo) => {
+    for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+      if (Math.hypot(x - cx, y - cy) > r) continue;
+      set(t, x, y, Math.hypot(x - cx + r * 0.4, y - cy + r * 0.4) < r * 0.45 ? hi : (((x - cx) + (y - cy) > r * 0.7) ? lo : c), (rnd() - 0.5) * 6);
+    }
+  };
+  const TOM = [214, 48, 40], TOMH = [246, 116, 100], TOML = [150, 28, 28];
+  const LET = [112, 190, 72], LETH = [170, 224, 122], LETL = [66, 132, 48];
+  const CAR = [238, 128, 36], CARH = [255, 178, 92], CARL = [168, 82, 18];
+  const GR = [62, 140, 44], GRD = [38, 98, 32];
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {   /* ruby block */
+    const edge = x === 0 || x === 15 || y === 0 || y === 15, hi = x === 1 || y === 1;
+    const facet = (((x + y) % 6) === 0) || (((x - y + 16) % 8) === 0);
+    set(139, x, y, edge ? [112, 10, 30] : (hi ? [255, 168, 180] : (facet ? [238, 84, 108] : [204, 28, 56])), (rnd() - 0.5) * 8);
+  }
+  /* plants drawn on crossed sheets: tomato (140), lettuce (141), carrot (142) */
+  for (let y = 3; y < 16; y++) { set(140, 7, y, GRD); set(140, 8, y, GR); }
+  [[5, 12], [6, 12], [9, 11], [10, 11], [5, 8], [6, 8], [9, 7], [10, 7], [6, 4], [7, 3], [8, 3], [9, 4], [4, 12], [11, 10]].forEach((c) => set(140, c[0], c[1], GR));
+  disc(140, 4, 10, 2.2, TOM, TOMH, TOML); disc(140, 11, 8, 2.2, TOM, TOMH, TOML); disc(140, 5, 5.5, 1.8, TOM, TOMH, TOML);
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const d = Math.hypot((x - 7.5) / 6.2, (y - 10.5) / 5);
+    if (d > 1) continue;
+    set(141, x, y, d > 0.82 ? LETL : (((x * 3 + y * 5) % 7) === 0 ? LETL : (((x + y) % 4) === 0 ? LETH : LET)), (rnd() - 0.5) * 8);
+  }
+  [[7, 12], [8, 12], [6, 11], [9, 11], [7, 10], [8, 10], [5, 9], [10, 9], [7, 9], [8, 8], [6, 7], [9, 7], [4, 6], [11, 6], [7, 6], [8, 5], [7, 4], [5, 3], [10, 3], [3, 5]].forEach((c) => set(142, c[0], c[1], (c[0] + c[1]) % 2 ? GR : GRD));
+  [[6, 13], [7, 13], [8, 13], [9, 13], [7, 14], [8, 14]].forEach((c) => set(142, c[0], c[1], CAR));
+  /* items: tomato (143), lettuce (144), carrot (145) */
+  disc(143, 7.5, 9.5, 5.2, TOM, TOMH, TOML);
+  [[7, 3], [8, 3], [7, 4], [8, 4], [6, 5], [7, 5], [8, 5], [9, 5], [5, 6], [10, 6]].forEach((c) => set(143, c[0], c[1], GR));
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const d = Math.hypot(x - 7.5, y - 8.5);
+    if (d > 5.6) continue;
+    set(144, x, y, d > 4.6 ? LETL : (((x * 3 + y * 5) % 7) === 0 ? LETL : (Math.hypot(x - 5.5, y - 6.5) < 2.4 ? LETH : LET)), (rnd() - 0.5) * 8);
+  }
+  for (let i = 0; i < 10; i++) {
+    const x = 2 + i, y = 13 - i;
+    set(145, x, y, i < 3 ? CARL : CAR); if (i >= 3) { set(145, x + 1, y, CARH); set(145, x, y + 1, CARL); }
+  }
+  [[12, 3], [13, 2], [12, 2], [13, 3], [14, 3], [12, 1], [11, 2], [13, 4], [14, 5]].forEach((c) => set(145, c[0], c[1], GR));
+  /* slices: tomato (146), lettuce (147), carrot (148) */
+  const slices = (t, outer, inner) => {
+    [[10, 5], [7, 8], [5, 11]].forEach((p) => {
+      for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+        const d = Math.hypot(x - p[0], y - p[1]);
+        if (d > 3.3) continue;
+        set(t, x, y, d < 1.8 ? inner : outer, (rnd() - 0.5) * 6);
+      }
+    });
+  };
+  slices(146, TOM, TOMH); slices(147, LET, LETH); slices(148, CAR, CARH);
+  /* salads in a bowl: tomato (149), carrot (150), garden (151) */
+  const bowlRows = ['................', '................', '................', '................', '................', '...RRRRRRRRRR...', '..RDDDDDDDDDDR..', '..BBBBBBBBBBBB..', '...BBBBBBBBBS...', '...BBBBBBBBBS...', '....BBBBBBSS....', '.....SSSSSS.....', '................', '................', '................', '................'];
+  const bc = { R: [200, 144, 100], D: [90, 58, 42], B: [166, 108, 74], S: [122, 78, 54] };
+  const salad = (t, base, dots) => {
+    for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) { const c = bc[bowlRows[y].charAt(x)]; if (c) set(t, x, y, c, (rnd() - 0.5) * 6); }
+    for (let x = 3; x <= 12; x++) set(t, x, 6, base);
+    for (let y = 3; y <= 5; y++) for (let x = (y === 3 ? 5 : 4); x <= (y === 3 ? 10 : 11); x++) set(t, x, y, base, (rnd() - 0.5) * 14);
+    dots.forEach((d) => set(t, d[0], d[1], d[2]));
+  };
+  salad(149, LET, [[5, 4, TOM], [8, 3, TOM], [10, 4, TOM], [7, 5, TOMH], [6, 3, TOMH]]);
+  salad(150, LETH, [[5, 4, CAR], [6, 5, CAR], [8, 3, CAR], [9, 4, CAR], [10, 5, CAR], [7, 4, CARH]]);
+  salad(151, LET, [[5, 4, TOM], [8, 3, CAR], [10, 4, TOM], [7, 5, CAR], [6, 3, CARH], [9, 5, TOMH]]);
+  /* raw chicken (152), cooked chicken (153) */
+  const leg = (t, c, hi, lo) => {
+    disc(t, 6.5, 7, 4.6, c, hi, lo);
+    [[9, 10], [10, 11], [11, 12], [12, 13], [10, 10], [11, 11], [12, 12]].forEach((p) => set(t, p[0], p[1], [240, 234, 220]));
+    [[13, 13], [14, 13], [13, 14], [14, 14], [14, 12], [12, 14]].forEach((p) => set(t, p[0], p[1], [250, 246, 236]));
+  };
+  leg(152, [236, 168, 150], [250, 206, 194], [196, 116, 104]);
+  leg(153, [188, 108, 50], [226, 152, 84], [128, 66, 28]);
+  /* feather (154) */
+  for (let i = 0; i < 12; i++) {
+    const x = 2 + i, y = 14 - i;
+    set(154, x, y, [196, 198, 208]);
+    if (i >= 2 && i <= 10) { set(154, x - 1, y, [250, 250, 252]); set(154, x, y + 1, [250, 250, 252]); }
+    if (i >= 4 && i <= 8) { set(154, x - 2, y, [226, 228, 236]); set(154, x, y + 2, [226, 228, 236]); }
+  }
+})();
+/* ---- farmland, seedlings, hoe, egg, fried egg, veggie pie (tiles 155 to 162) ---- */
+(function paintFarmArt() {
+  const rnd = mulberry32(8484);
+  const set = (t, x, y, c, v) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) { v = v || 0; px(t, x, y, c[0] + v, c[1] + v, c[2] + v); } };
+  const GR = [62, 140, 44], GRD = [38, 98, 32], LET = [112, 190, 72], LETL = [66, 132, 48], CAR = [238, 128, 36];
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) set(155, x, y, (y % 4 === 0) ? [64, 42, 28] : [96, 66, 42], (rnd() - 0.5) * 10);
+  for (let y = 9; y < 16; y++) { set(156, 7, y, GRD); set(156, 8, y, GR); }
+  [[5, 10], [6, 10], [9, 10], [10, 10], [6, 9], [9, 9], [7, 8], [8, 8]].forEach((c) => set(156, c[0], c[1], GR));
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    if (Math.hypot((x - 7.5) / 4, (y - 13) / 2.6) < 1) set(157, x, y, ((x + y) % 3 === 0) ? LETL : LET, (rnd() - 0.5) * 8);
+  }
+  [[7, 14], [8, 14], [6, 13], [9, 13], [7, 12], [8, 12], [5, 11], [10, 11], [7, 11], [8, 10], [6, 10], [9, 10]].forEach((c) => set(158, c[0], c[1], (c[0] + c[1]) % 2 ? GR : GRD));
+  [[7, 15], [8, 15]].forEach((c) => set(158, c[0], c[1], CAR));
+  for (let i = 0; i < 10; i++) { set(159, 2 + i, 13 - i, [150, 110, 60]); set(159, 3 + i, 13 - i, [104, 76, 40]); }
+  [[10, 4], [11, 4], [12, 4], [13, 4], [14, 4]].forEach((c) => set(159, c[0], c[1], [190, 190, 198]));
+  [[14, 5], [14, 6], [13, 6]].forEach((c) => set(159, c[0], c[1], [120, 120, 128]));
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    if (Math.hypot((x - 7.5) / 4, (y - 8.5) / 5.2) > 1) continue;
+    const hi = Math.hypot(x - 6, y - 6) < 1.7, lo = (x - 7.5) + (y - 8.5) > 3;
+    set(160, x, y, hi ? [255, 252, 240] : (lo ? [214, 200, 170] : [244, 236, 216]), (rnd() - 0.5) * 4);
+  }
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const d = Math.hypot((x - 7.5) / 6.4, (y - 9) / 4.2);
+    if (d > 1) continue;
+    const yd = Math.hypot(x - 7, y - 8.5);
+    set(161, x, y, yd < 1.8 ? [255, 226, 110] : (yd < 2.6 ? [250, 190, 40] : (d > 0.85 ? [226, 226, 218] : [250, 250, 246])));
+  }
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const d = Math.hypot((x - 7.5) / 6.6, (y - 9) / 4.4);
+    if (d > 1) continue;
+    const inner = Math.hypot((x - 7.5) / 5, (y - 9) / 2.8) < 1;
+    set(162, x, y, inner ? [240, 214, 150] : (d > 0.85 ? [176, 126, 60] : [214, 164, 92]), (rnd() - 0.5) * 8);
+  }
+  [[5, 8, [214, 48, 40]], [8, 7, [112, 190, 72]], [10, 9, [238, 128, 36]], [6, 10, [112, 190, 72]], [9, 10, [214, 48, 40]], [7, 9, [238, 128, 36]]].forEach((d) => { set(162, d[0], d[1], d[2]); set(162, d[0] + 1, d[1], d[2]); });
+})();
+/* ---- wheat, flour, bread, milk, cheese, dough, pizza (tiles 163 to 172) ---- */
+(function paintBakeryArt() {
+  const rnd = mulberry32(9595);
+  const set = (t, x, y, c, v) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) { v = v || 0; px(t, x, y, c[0] + v, c[1] + v, c[2] + v); } };
+  const GRD = [38, 98, 32], GR = [62, 140, 44], GOLD = [232, 196, 84], GOLDD = [190, 160, 60];
+  [3, 6, 9, 12].forEach((sx, k) => {
+    for (let y = 6; y < 16; y++) set(163, sx, y, y > 11 ? GRD : [176, 160, 64]);
+    for (let y = 2 + (k % 2); y <= 6; y++) { set(163, sx, y, GOLD); if (y % 2 === 0) { set(163, sx - 1, y + 1, GOLDD); set(163, sx + 1, y + 1, GOLDD); } }
+    for (let y = 12 - (k % 2); y < 16; y++) set(164, sx, y, k % 2 ? GR : GRD);
+  });
+  for (let i = 0; i < 12; i++) { set(165, 2 + i, 14 - i, [200, 170, 70]); set(165, 3 + i, 14 - i, [232, 200, 96]); }
+  [[12, 3], [13, 3], [13, 2], [14, 2], [11, 3], [14, 4], [12, 2], [13, 4]].forEach((c) => set(165, c[0], c[1], [240, 208, 100]));
+  [[6, 10], [7, 10], [6, 9], [7, 9]].forEach((c) => set(165, c[0], c[1], [150, 70, 44]));
+  for (let y = 5; y <= 14; y++) for (let x = 3; x <= 12; x++) {
+    if ((y === 5 || y === 14) && (x === 3 || x === 12)) continue;
+    set(166, x, y, (x === 3 || x === 12 || y === 14) ? [196, 190, 172] : [240, 236, 224], (rnd() - 0.5) * 6);
+  }
+  for (let x = 5; x <= 10; x++) set(166, x, 4, [150, 110, 60]);
+  [[6, 9], [7, 9], [8, 9], [9, 9], [7, 10], [8, 10]].forEach((c) => set(166, c[0], c[1], [210, 180, 90]));
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const d = Math.hypot((x - 7.5) / 6.4, (y - 9) / 3.8);
+    if (d > 1) continue;
+    set(167, x, y, d > 0.85 ? [150, 100, 48] : (y < 8 ? [226, 170, 96] : [196, 140, 72]), (rnd() - 0.5) * 8);
+  }
+  [[5, 8], [8, 7], [10, 8]].forEach((c) => { set(167, c[0], c[1], [150, 100, 48]); set(167, c[0] + 1, c[1] + 1, [150, 100, 48]); });
+  const bowlRows = ['................', '................', '................', '................', '................', '...RRRRRRRRRR...', '..RDDDDDDDDDDR..', '..BBBBBBBBBBBB..', '...BBBBBBBBBS...', '...BBBBBBBBBS...', '....BBBBBBSS....', '.....SSSSSS.....', '................', '................', '................', '................'];
+  const bc = { R: [200, 144, 100], D: [250, 250, 252], B: [166, 108, 74], S: [122, 78, 54] };
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) { const c = bc[bowlRows[y].charAt(x)]; if (c) set(168, x, y, c, (rnd() - 0.5) * 4); }
+  for (let y = 5; y <= 12; y++) for (let x = 2; x <= 13; x++) {
+    const edgeY = 5 + (13 - x) * 0.45;
+    if (y < edgeY || y > 12) continue;
+    set(169, x, y, y === 12 ? [214, 164, 40] : (y - edgeY < 1.6 ? [255, 226, 120] : [250, 204, 70]), (rnd() - 0.5) * 6);
+  }
+  [[6, 10], [10, 9], [8, 11]].forEach((c) => set(169, c[0], c[1], [214, 160, 40]));
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const d = Math.hypot((x - 7.5) / 6, (y - 9) / 4.4);
+    if (d > 1) continue;
+    set(170, x, y, d > 0.86 ? [206, 182, 136] : (Math.hypot(x - 6, y - 7) < 2 ? [248, 230, 190] : [236, 214, 170]), (rnd() - 0.5) * 6);
+  }
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const d = Math.hypot(x - 7.5, y - 8);
+    if (d > 6.4) continue;
+    set(171, x, y, d > 5.4 ? [228, 192, 130] : [206, 66, 48], (rnd() - 0.5) * 8);
+    set(172, x, y, d > 6 ? [176, 118, 56] : (d > 5.2 ? [214, 160, 80] : [250, 208, 90]), (rnd() - 0.5) * 8);
+  }
+  [[6, 6], [9, 7], [8, 10], [5, 9], [10, 10], [7, 8]].forEach((c) => set(171, c[0], c[1], [250, 226, 150]));
+  [[6, 6], [11, 8], [7, 11], [4, 8]].forEach((c) => set(172, c[0], c[1], [190, 120, 40]));
+  [[9, 6], [5, 10], [10, 10]].forEach((c) => { set(172, c[0], c[1], [206, 50, 40]); set(172, c[0] + 1, c[1], [206, 50, 40]); set(172, c[0], c[1] + 1, [170, 36, 30]); });
+})();
+/* ---- bush and flowers (tiles 173 to 177) ---- */
+(function paintFloraArt() {
+  const rnd = mulberry32(1357);
+  const set = (t, x, y, c, v) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) { v = v || 0; px(t, x, y, c[0] + v, c[1] + v, c[2] + v); } };
+  const G1 = [52, 128, 40], G2 = [74, 154, 52], G3 = [36, 98, 32];
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const d = Math.hypot((x - 7.5) / 6.4, (y - 10.5) / 5.4);
+    if (d > 1 + (rnd() - 0.5) * 0.25) continue;
+    set(173, x, y, d > 0.8 ? G3 : (((x * 5 + y * 3) % 4) === 0 ? G2 : G1), (rnd() - 0.5) * 8);
+  }
+  const stem = (t, top) => {
+    for (let y = top; y < 16; y++) { set(t, 7, y, G3); set(t, 8, y, G1); }
+    [[5, 12], [6, 11], [9, 13], [10, 12]].forEach((c) => set(t, c[0], c[1], G2));
+  };
+  const circle = (t, cx, cy, r, c) => { for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) if (Math.hypot(x - cx, y - cy) <= r) set(t, x, y, c, (rnd() - 0.5) * 6); };
+  stem(174, 7); circle(174, 7.5, 5.5, 3, [250, 214, 40]); circle(174, 7.5, 5.5, 1.2, [255, 240, 120]);
+  stem(175, 7); circle(175, 7.5, 5.5, 3.2, [214, 36, 36]); circle(175, 7.5, 5.5, 1, [40, 20, 20]);
+  stem(176, 7); circle(176, 7.5, 5.5, 3, [130, 160, 250]); circle(176, 7.5, 5.5, 1.8, [70, 100, 226]); circle(176, 7.5, 5.5, 0.8, [30, 50, 150]);
+  stem(177, 8);
+  [[5, 3], [6, 3], [9, 3], [10, 3], [5, 4], [6, 4], [7, 4], [8, 4], [9, 4], [10, 4], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5], [10, 5], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [10, 6], [6, 7], [7, 7], [8, 7], [9, 7]].forEach((c) => set(177, c[0], c[1], c[0] >= 9 ? [196, 70, 130] : [236, 106, 168], (rnd() - 0.5) * 6));
+  set(177, 7, 3, [196, 70, 130]); set(177, 8, 3, [196, 70, 130]);
+})();
+/* ---- seagrass, kelp, kelp item, dried kelp (tiles 178 to 181) ---- */
+(function paintSeaArt() {
+  const rnd = mulberry32(2468);
+  const set = (t, x, y, c, v) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) { v = v || 0; px(t, x, y, c[0] + v, c[1] + v, c[2] + v); } };
+  [[3, 9], [5, 12], [7, 8], [9, 13], [11, 10], [13, 12]].forEach((b, k) => {
+    for (let y = 15; y > 15 - b[1]; y--) {
+      const x = b[0] + (((y + k) % 4) < 2 ? 0 : 1);
+      set(178, x, y, k % 2 ? [46, 150, 96] : [38, 128, 80], (rnd() - 0.5) * 8);
+      if (y > 15 - b[1] + 2) set(178, x + 1, y, [30, 104, 66]);
+    }
+  });
+  for (let y = 0; y < 16; y++) {
+    const x = 7 + Math.round(Math.sin(y * 0.7) * 1.2);
+    set(179, x, y, [78, 110, 36], (rnd() - 0.5) * 6); set(179, x + 1, y, [54, 82, 26]);
+    if (y % 4 === 1) { set(179, x + 2, y, [96, 130, 44]); set(179, x + 3, y, [96, 130, 44]); set(179, x + 4, y - 1, [110, 146, 54]); }
+    if (y % 4 === 3) { set(179, x - 1, y, [96, 130, 44]); set(179, x - 2, y, [96, 130, 44]); set(179, x - 3, y - 1, [110, 146, 54]); }
+  }
+  for (let i = 0; i < 12; i++) {
+    const x = 3 + i, y = 14 - i + Math.round(Math.sin(i * 0.9));
+    set(180, x, y, [74, 112, 40], (rnd() - 0.5) * 6); set(180, x + 1, y, [96, 134, 52]); set(180, x, y + 1, [54, 84, 28]);
+    if (i % 4 === 2) { set(180, x - 2, y, [110, 148, 58]); set(180, x + 3, y - 1, [110, 148, 58]); }
+  }
+  for (let y = 4; y <= 12; y++) for (let x = 3; x <= 12; x++) {
+    const edge = x === 3 || x === 12 || y === 4 || y === 12;
+    set(181, x, y, edge ? [24, 38, 20] : (((x + y) % 3) === 0 ? [58, 84, 42] : [38, 56, 30]), (rnd() - 0.5) * 6);
+  }
+})();
 const SKY = 0x8cc0ee;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(SKY);
@@ -1201,7 +1530,7 @@ function updateSky(headId) {
   r = lerp(r, SKY_DUSK[0], dusk); g = lerp(g, SKY_DUSK[1], dusk); b = lerp(b, SKY_DUSK[2], dusk);
   const B = 0.2 + 0.8 * daylight, tr = B * (0.78 + 0.22 * daylight), tg = B * (0.85 + 0.15 * daylight);
   LT.r = tr; LT.g = tg; LT.b = B; fallMat.color.setRGB(tr, tg, B);
-  envMode = headId === WATER ? 1 : (headId === LAVA ? 2 : 0);
+  envMode = (headId === WATER || headId === 98 || headId === 99) ? 1 : (headId === LAVA ? 2 : 0);
   let near, far;
   if (envMode === 1) {
     const k = 0.3 + 0.7 * daylight; r = 0.09 * k; g = 0.26 * k; b = 0.58 * k; near = 0.5; far = 22;
@@ -1272,7 +1601,7 @@ function genChunk(cx, cz) {
     bio[ci] = b; hts[ci] = h;
     const under = h < SEA;
     let topId, fillId;
-    if (under) { topId = fbm(wx * 0.04 + 1200, wz * 0.04 + 1200, 2) > 0.18 ? 49 : (h >= SEA - 4 ? 8 : 2); fillId = topId; }
+    if (under) { topId = fbm(wx * 0.04 + 1200, wz * 0.04 + 1200, 2) > 0.18 ? 49 : (fbm(wx * 0.05 + 2600, wz * 0.05 + 2600, 2) > 0.14 ? 81 : (h >= SEA - 4 ? 8 : 2)); fillId = topId; }
     else if (h >= 46) { topId = SNOW; fillId = 3; }
     else if (h >= 38) { topId = 3; fillId = 3; }
     else if (b === 2 || h <= SEA + 1) { topId = 8; fillId = 8; }
@@ -1301,6 +1630,8 @@ function genChunk(cx, cz) {
     oreBlob(data, rnd, o[0], x, y, z, o[2]);
   }
   for (let t = 0; t < 8; t++) oreBlob(data, rnd, 49, (rnd() * 16) | 0, 5 + ((rnd() * 52) | 0), (rnd() * 16) | 0, 18);   /* pockets of gravel */
+  const rr = mulberry32(Math.imul(cx, 19349663) ^ Math.imul(cz, 83492791) ^ Math.imul(seed, 2654435761) ^ 777);   /* its own dice, so the rest of the world stays the same */
+  for (let t = 0; t < 3; t++) oreBlob(data, rr, 82, (rr() * 16) | 0, 1 + ((rr() * 28) | 0), (rr() * 16) | 0, 3);   /* ruby veins */
   const birchPatch = (wx, wz) => fbm(wx * 0.006 + 1500, wz * 0.006 + 1500, 2) > 0.2;
   for (let z = 2; z <= 13; z++) for (let x = 2; x <= 13; x++) {
     const i = x + z * 16, wx = cx * CS + x, wz = cz * CS + z, h = hts[i], b = bio[i];
@@ -1384,6 +1715,40 @@ function genChunk(cx, cz) {
       if (h + 1 > maxY) maxY = h + 1;
     }
   }
+  /* wild vegetables on grass in plains and forests */
+  for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
+    const i = x + z * 16, wx = cx * CS + x, wz = cz * CS + z, h = hts[i], b = bio[i];
+    if ((b !== 0 && b !== 1) || h < SEA + 1 || h > 40 || h + 1 >= H) continue;
+    if (data[x + (z << 4) + (h << 8)] !== 1 || data[x + (z << 4) + ((h + 1) << 8)] !== 0 || hash2(wx + 71, wz + 53) >= 0.02) continue;
+    data[x + (z << 4) + ((h + 1) << 8)] = [84, 85, 86, 91][(hash2(wx + 5, wz + 97) * 4) | 0];
+    if (h + 1 > maxY) maxY = h + 1;
+  }
+  /* alive bushes and flowers on grass (flowers grow in patches of one kind) */
+  for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
+    const i = x + z * 16, wx = cx * CS + x, wz = cz * CS + z, h = hts[i], b = bio[i];
+    if ((b !== 0 && b !== 1) || h < SEA + 1 || h > 40 || h + 1 >= H) continue;
+    if (data[x + (z << 4) + (h << 8)] !== 1 || data[x + (z << 4) + ((h + 1) << 8)] !== 0) continue;
+    const r = hash2(wx + 131, wz + 17);
+    let pid = 0;
+    if (r < 0.012) pid = 93;
+    else if (r < 0.012 + (b === 0 ? 0.05 : 0.02)) pid = 94 + ((hash2((wx >> 3) + 7, (wz >> 3) + 3) * 4) | 0);
+    if (!pid) continue;
+    data[x + (z << 4) + ((h + 1) << 8)] = pid;
+    if (h + 1 > maxY) maxY = h + 1;
+  }
+  /* seagrass and kelp on the sea floor (kelp stands in the deeper water and always leaves water above it) */
+  for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
+    const i = x + z * 16, wx = cx * CS + x, wz = cz * CS + z, h = hts[i];
+    if (h >= SEA - 2 || h < 2) continue;
+    const floorId = data[x + (z << 4) + (h << 8)];
+    if (floorId !== 8 && floorId !== 2 && floorId !== 49 && floorId !== 81) continue;
+    if (data[x + (z << 4) + ((h + 1) << 8)] !== WATER) continue;
+    const depth = SEA - 1 - h, r = hash2(wx + 211, wz + 83);
+    if (depth >= 4 && r < 0.03) {
+      const kh = Math.min(depth - 1, 2 + ((hash2(wx + 5, wz + 313) * 5) | 0));
+      for (let dy = 1; dy <= kh; dy++) data[x + (z << 4) + ((h + dy) << 8)] = 99;
+    } else if (r < 0.1) data[x + (z << 4) + ((h + 1) << 8)] = 98;
+  }
   const e = edits[key(cx, cz)];
   if (e) for (const k in e) {
     const idx = +k, ev = e[k], bid = ev & 255;
@@ -1455,7 +1820,7 @@ function scheduleAround(x, y, z) {
   scheduleFluid(x, y, z); scheduleFluid(x + 1, y, z); scheduleFluid(x - 1, y, z);
   scheduleFluid(x, y + 1, z); scheduleFluid(x, y - 1, z); scheduleFluid(x, y, z + 1); scheduleFluid(x, y, z - 1);
 }
-const replaceable = (id) => id === 0 || id === BUSH || (id >= 36 && id <= 40) || !!PASS[id];   /* fluid washes these away */
+const replaceable = (id) => id === 0 || id === BUSH || (id >= 36 && id <= 40) || (!!PASS[id] && id !== 98 && id !== 99);   /* fluid washes these away (but not seagrass or kelp) */
 /* water meets lava: obsidian over a lava source, cobblestone over flowing lava. Lava meets water: stone below, cobblestone beside */
 function fluidReact(tx, ty, tz, from, down) {
   const tid = getBlock(tx, ty, tz);
@@ -1520,7 +1885,7 @@ function fluidStep(dt) {
 /* ---------------------------------------------------------------- gravity
    Sand and gravel fall when nothing holds them up. A falling block is a little entity that drops until it
    meets something solid, then turns back into a block (washing away torches, plants and fluid on the way). */
-const GRAV = []; GRAV[8] = GRAV[49] = 1;
+const GRAV = []; GRAV[8] = GRAV[49] = GRAV[80] = 1;   /* sand, gravel and anvils fall */
 const gravDue = new Set();
 const fallers = [];
 const fallGeo = {};
@@ -1553,7 +1918,7 @@ function spawnFaller(x, y, z, id) {
   const m = new THREE.Mesh(fallGeometry(id), fallMat);
   m.position.set(x + 0.5, y, z + 0.5);
   scene.add(m);
-  fallers.push({ id: id, bx: x, bz: z, y: y, vy: 0, mesh: m });
+  fallers.push({ id: id, bx: x, bz: z, y: y, vy: 0, mesh: m, hit: [] });
 }
 function landFaller(f) {
   const cy = Math.round(f.y);
@@ -1563,6 +1928,17 @@ function landFaller(f) {
 }
 function stepFaller(f, dt) {
   f.vy = Math.max(-45, f.vy - 28 * dt);
+  if (f.id === 80 && f.vy < -4) {   /* a falling anvil flattens whatever is underneath */
+    const dmg = Math.min(20, Math.round(-f.vy * 0.55));
+    for (const m of mobs) {
+      if (f.hit.indexOf(m) < 0 && Math.abs(m.x - f.bx - 0.5) < 0.5 + m.def.w / 2 && Math.abs(m.z - f.bz - 0.5) < 0.5 + m.def.w / 2 && m.y < f.y + 1 && m.y + m.def.h > f.y) {
+        f.hit.push(m); m.hp -= dmg; m.hurtT = 0.4;
+        if (m.hp <= 0) killMob(m, true);
+        break;
+      }
+    }
+    if (!f.hitP && !dead && Math.abs(player.x - f.bx - 0.5) < 0.8 && Math.abs(player.z - f.bz - 0.5) < 0.8 && player.y < f.y + 1 && player.y + 1.8 > f.y) { f.hitP = true; hurt(dmg, 'You were flattened by an anvil'); }
+  }
   let dy = f.vy * dt;
   while (dy < 0) {
     const step = Math.max(dy, -0.5), ny = f.y + step, cy = Math.floor(ny - 1e-6);
@@ -1609,7 +1985,7 @@ function setBlock(x, y, z, id, lvl) {
   const c = getChunk(cx, cz), idx = lx + (lz << 4) + (y << 8);
   const lv = EMIT_LV(id), oldId = c.data[idx], olv = EMIT_LV(oldId);
   c.data[idx] = id;
-  const fv = (id === WATER || id === LAVA || id === 61 || id === 73 || id === 74) ? (lvl || 0) : 0;
+  const fv = (id === WATER || id === LAVA || id === 61 || id === 73 || id === 74 || id === 80) ? (lvl || 0) : 0;
   c.fl[idx] = fv;
   dirty.add(c);
   if (id && y > c.maxY) c.maxY = y;
@@ -1797,6 +2173,24 @@ function meshChunk(c) {
   const lightAt = (x, y, z) => (y < 0 || y >= H) ? 0 : light[(y * RW + (z + 16)) * RW + (x + 16)];
   const gm = mkGroup(), gw = mkGroup(), gl = mkGroup();
   /* a flat rectangle lying in the cell at height yy, seen from both sides; full = use the whole tile, otherwise sample one solid colour */
+  /* an axis-aligned box inside the cell, drawn from outside with the whole tile on each face */
+  const box = (x, y, z, x0, y0, z0, x1, y1, z1, tile) => {
+    const fe = sky(x, y, z), fb = LBT[Math.round(lightAt(x, y, z) * 4)];
+    const fu0 = tile / NT + EPS, fu1 = (tile + 1) / NT - EPS;
+    const A = x + x0, B = x + x1, C = y + y0, D = y + y1, E = z + z0, F = z + z1;
+    const quads = [
+      [[A, D, E], [B, D, E], [B, D, F], [A, D, F], 1.0], [[A, C, F], [B, C, F], [B, C, E], [A, C, E], 0.5],
+      [[B, C, E], [B, C, F], [B, D, F], [B, D, E], 0.8], [[A, C, F], [A, C, E], [A, D, E], [A, D, F], 0.8],
+      [[A, C, F], [B, C, F], [B, D, F], [A, D, F], 0.7], [[B, C, E], [A, C, E], [A, D, E], [B, D, E], 0.7]
+    ];
+    for (const q of quads) {
+      const v = gm.vc;
+      for (let k = 0; k < 4; k++) { gm.P.push(q[k][0], q[k][1], q[k][2]); pushShade(gm, q[4], fe, fb); }
+      gm.U.push(fu0, EPS, fu1, EPS, fu1, 1 - EPS, fu0, 1 - EPS);
+      gm.I.push(v, v + 1, v + 2, v, v + 2, v + 3, v, v + 2, v + 1, v, v + 3, v + 2);
+      gm.vc += 4;
+    }
+  };
   const flat = (x, y, z, x0, z0, x1, z1, yy, tile, shade, full, rotf) => {
     const fe = sky(x, y, z), fb = LBT[Math.round(lightAt(x, y, z) * 4)], fv = gm.vc;
     const fu0 = tile / NT + EPS, fu1 = (tile + 1) / NT - EPS, fm = (tile + 0.5) / NT;
@@ -1840,11 +2234,19 @@ function meshChunk(c) {
       flat(x, y, z, a, a, b, b, y + (btn ? (on ? 0.06 : 0.12) : (on ? 0.04 : 0.08)), def.f[0], 0.95, true);
       continue;
     }
+    if (id === 80) {
+      /* anvil: a base, a narrow waist and a long flat top, the top running along x or z (kept in the flag byte) */
+      const ax = (getFl(x, y, z) & 1) === 0;
+      box(x, y, z, 0.12, 0, 0.12, 0.88, 0.22, 0.88, 127);
+      box(x, y, z, 0.3, 0.22, 0.3, 0.7, 0.56, 0.7, 127);
+      if (ax) box(x, y, z, 0, 0.56, 0.18, 1, 1, 0.82, 127); else box(x, y, z, 0.18, 0.56, 0, 0.82, 1, 1, 127);
+      continue;
+    }
     if (id === 73 || id === 74) {
       flat(x, y, z, 0.06, 0.06, 0.94, 0.94, y + 0.1, def.f[0], 0.95, true, getFl(x, y, z) & 3);
       continue;
     }
-    if (id === BUSH || id === 64 || id === 65) {
+    if (id === BUSH || id === 64 || id === 65 || (id >= 84 && id <= 86) || (id >= 88 && id <= 99)) {
       /* a plant (or a lever): two crossed vertical sheets, drawn from both sides */
       const bt = def.f[0], bu0 = bt / NT + EPS, bu1 = (bt + 1) / NT - EPS, bv = gm.vc;
       const be = sky(x, y, z), bb = LBT[Math.round(lightAt(x, y, z) * 4)];
@@ -1863,7 +2265,7 @@ function meshChunk(c) {
       const f = FACES[fi];
       const nx = x + f.n[0], ny = y + f.n[1], nz = z + f.n[2];
       const nid = get(nx, ny, nz);
-      if (isW) { if (nid === WATER || (nid !== 0 && !TRANSP[nid])) continue; }
+      if (isW) { if (nid === WATER || nid === 98 || nid === 99 || (nid !== 0 && !TRANSP[nid])) continue; }
       else if (nid !== 0 && !(TRANSP[nid] && (nid !== id || LEAF[id]))) continue;
       const tile = def.f[fi], u0 = tile / NT + EPS, u1 = (tile + 1) / NT - EPS;
       let e0 = 1, l0 = 0;
@@ -2059,7 +2461,12 @@ function envStep(dt) {
     if (burnTick >= 1) { burnTick = 0; hurt(1, 'You burned to death'); }
   }
 }
+function fxStep(dt) {
+  if (fxSpeed > 0) fxSpeed -= dt;
+  if (fxRegen > 0 && !dead && !creative) { fxRegen -= dt; fxTick += dt; if (fxTick >= 1.5) { fxTick = 0; vit.health = Math.min(20, vit.health + 1); } } else fxTick = 0;
+}
 function eatStep(dt) {
+  fxStep(dt);
   const st = slots[sel], f = st && FOOD[st.id];
   if (dead || creative || held !== 2 || !f || (vit.food >= 20 && !f.heal)) {
     if (eatT > 0) { eatT = 0; eatBarEl.style.display = 'none'; }
@@ -2073,6 +2480,9 @@ function eatStep(dt) {
     vit.food = Math.min(20, vit.food + f.food);
     vit.sat = Math.min(vit.food, vit.sat + f.sat);
     if (f.heal) vit.health = Math.min(20, vit.health + f.heal);
+    if (f.bowl) addItem(153, 1);   /* the bowl is left over */
+    if (f.regen) fxRegen = Math.max(fxRegen, f.regen);
+    if (f.speed) fxSpeed = Math.max(fxSpeed, f.speed);
     eatT = 0; held = -1; eatBarEl.style.display = 'none';
     invChanged();
   }
@@ -2149,7 +2559,7 @@ function updatePlayer(dt) {
   sprinting = false;
   const bx = Math.floor(player.x), bz = Math.floor(player.z);
   /* you are only "in" a fluid while below its surface; a thin sheet of flowing water does not make you swim */
-  const wet = (type, yy, minH) => { const cy = Math.floor(yy); if (getBlock(bx, cy, bz) !== type) return false; const fh = fluidHeight(bx, cy, bz); return fh >= minH && yy - cy < fh; };
+  const wet = (type, yy, minH) => { const cy = Math.floor(yy), gb = getBlock(bx, cy, bz), plant = type === WATER && (gb === 98 || gb === 99); if (gb !== type && !plant) return false; const fh = plant ? 1 : fluidHeight(bx, cy, bz); return fh >= minH && yy - cy < fh; };
   inWater = wet(WATER, player.y + 0.6, 0.45) || wet(WATER, player.y + 0.05, 0.45);
   inLava = wet(LAVA, player.y + 0.6, 0) || wet(LAVA, player.y + 0.05, 0);
   headWater = wet(WATER, player.y + EYE, 0); headLava = wet(LAVA, player.y + EYE, 0);
@@ -2173,7 +2583,7 @@ function updatePlayer(dt) {
   } else {
     const sprint = shift && (creative || vit.food > 6) && (fx !== 0 || fz !== 0);
     sprinting = sprint;
-    const sp = sprint ? 5.8 : 4.3, k = Math.min(1, dt * (player.onGround ? 14 : 5));
+    const sp = (sprint ? 5.8 : 4.3) * (fxSpeed > 0 ? 1.25 : 1), k = Math.min(1, dt * (player.onGround ? 14 : 5));
     player.vx += (wx * sp - player.vx) * k;
     player.vz += (wz * sp - player.vz) * k;
     player.vy = Math.max(-55, player.vy - 28 * dt);
@@ -2233,9 +2643,46 @@ function intersectsPlayer(bx, by, bz) {
 const mine = { x: 0, y: 0, z: 0, t: 0, active: false };
 let mineCool = 0;
 /* furnaces: each one keeps its own input, fuel, output and timers */
-const SMELT = { 144: [145, 1], 134: [135, 1], 126: [128, 1], 127: [129, 1], 108: [102, 1], 8: [9, 1], 4: [3, 1], 6: [109, 1], 24: [109, 1], 27: [109, 1], 50: [109, 1] };   /* item -> [result, count] */
+const SMELT = { 184: [185, 1], 179: [180, 2], 182: [183, 1], 173: [174, 1], 169: [170, 1], 151: [152, 1], 144: [145, 1], 134: [135, 1], 126: [128, 1], 127: [129, 1], 108: [102, 1], 8: [9, 1], 4: [3, 1], 6: [109, 1], 24: [109, 1], 27: [109, 1], 50: [109, 1] };   /* item -> [result, count] */
 const FUEL = { 101: 80, 109: 80, 100: 5, 5: 15, 30: 15, 31: 15, 6: 15, 24: 15, 27: 15, 50: 15, 53: 15, 77: 800 };          /* item -> seconds of burning */
 const COOK_TIME = 10;
+/* crops: a planted seedling grows into a full plant after a while */
+const growing = new Map();
+function plantSeedling(x, y, z, id) {
+  setBlock(x, y, z, id);
+  growing.set(x + ',' + y + ',' + z, { x: x, y: y, z: z, t: 100 + Math.random() * 120 });
+}
+function growStep(dt) {
+  for (const [k, g] of growing) {
+    if (!chunkLoaded(g.x, g.z)) continue;
+    const b = getBlock(g.x, g.y, g.z);
+    if (b < 88 || b === 91 || b > 92) { growing.delete(k); continue; }
+    g.t -= dt;
+    if (g.t <= 0) { setBlock(g.x, g.y, g.z, b === 92 ? 91 : b - 4); growing.delete(k); }
+  }
+}
+function growJSON() { const o = []; growing.forEach((g) => o.push([g.x, g.y, g.z, Math.round(g.t)])); return o; }
+(function loadGrowing() {
+  if (!sameGen || !saved || !Array.isArray(saved.grow)) return;
+  saved.grow.forEach((a) => { if (Array.isArray(a) && a.length === 4 && a.every(Number.isFinite)) growing.set(a[0] + ',' + a[1] + ',' + a[2], { x: a[0], y: a[1], z: a[2], t: Math.max(1, a[3]) }); });
+})();
+/* chicken eggs: laid on the ground, picked up by walking over them */
+const eggItems = [], eggGeo = new THREE.BoxGeometry(0.2, 0.26, 0.2), eggMat = new THREE.MeshBasicMaterial({ color: 0xf2e8d0 });
+function layEgg(x, y, z) {
+  const mesh = new THREE.Mesh(eggGeo, eggMat); mesh.position.set(x, y, z); scene.add(mesh);
+  eggItems.push({ mesh: mesh, x: x, y: y, z: z, vy: 0, life: 300 });
+}
+function eggStep(dt) {
+  for (let i = eggItems.length - 1; i >= 0; i--) {
+    const e = eggItems[i];
+    e.life -= dt; e.vy -= 14 * dt;
+    const ny = e.y + e.vy * dt;
+    if (mobSolid(Math.floor(e.x), Math.floor(ny - 0.13), Math.floor(e.z))) e.vy = 0; else e.y = ny;
+    e.mesh.position.set(e.x, e.y + Math.sin(e.life * 3) * 0.03, e.z); e.mesh.rotation.y += dt * 2;
+    const near = Math.hypot(player.x - e.x, player.z - e.z) < 1.1 && Math.abs(player.y + 0.8 - e.y) < 1.4;
+    if (e.life <= 0 || e.y < -5 || (near && addItem(173, 1))) { scene.remove(e.mesh); eggItems.splice(i, 1); }
+  }
+}
 const furnaces = new Map();
 const fkey = (x, y, z) => x + ',' + y + ',' + z;
 function getFurnace(x, y, z, create) {
@@ -2300,6 +2747,10 @@ function torchSupport(x, y, z, quiet) {
 function giveDrop(id) {
   if (id === SNOW) { if (!addItem(141, 4)) showHint('Inventory full', 1000); return; }   /* snow breaks into snowballs */
   if (id === BUSH) { const n = Math.floor(Math.random() * 3); if (n > 0) addItem(100, n); return; }
+  if (id === 81) { if (!addItem(151, 4)) showHint('Inventory full', 1000); return; }   /* clay breaks into 4 clay balls */
+  if (id >= 84 && id <= 86) { const n = 1 + (Math.random() < 0.5 ? 1 : 0); if (!addItem(160 + id - 84, n)) showHint('Inventory full', 1000); return; }   /* a plant gives 1 or 2 vegetables, so replanting pays off */
+  if (id === 91) { const n = 2 + (Math.random() < 0.5 ? 1 : 0); if (!addItem(176, n)) showHint('Inventory full', 1000); return; }   /* wheat gives 2 or 3 */
+  if (id === 93) { const n = Math.floor(Math.random() * 3); if (n > 0) addItem(100, n); return; }   /* a bush gives 0 to 2 sticks */
   const d = dropOf(id);
   if (d && !addItem(d, 1)) showHint('Inventory full', 1000);
 }
@@ -2324,7 +2775,12 @@ function breakBlock(x, y, z) {
   if (old === 7 && Math.random() < 0.08) addItem(104, 1);
   const st = slots[sel], tool = toolOf(st);
   if (canHarvest(old, tool)) {
-    giveDrop(old);
+    if (old >= 84 && old <= 86 && st && st.id === 159) {   /* cut with the knife: two slices instead of the whole vegetable */
+      if (!addItem(163 + old - 84, 2)) showHint('Inventory full', 1000);
+      st.d--;
+      if (st.d <= 0) { slots[sel] = null; showHint('Your knife broke', 1200); }
+      invChanged();
+    } else giveDrop(old);
     if ((old === 3 || old === 4 || old === 49) && Math.random() < (old === 49 ? 0.3 : 0.25)) addItem(142, 1);   /* now and then a loose rock */
   }
   if (tool) {
@@ -2391,10 +2847,18 @@ function act(btn, first) {
   if (btn === 0 && targetMob) { attackMob(targetMob); return; }
   const st = slots[sel], shiftDown = keys.ShiftLeft || keys.ShiftRight;
   if (btn === 2) {
+    if (btn === 2 && st && st.id === 153 && targetMob && targetMob.type === 'cow') {   /* a bowl on a cow: a bowl of milk (a cow gives milk once a minute) */
+      if (first) {
+        if (performance.now() - (targetMob.milkAt || -1e9) < 60000) showHint('This cow was milked a moment ago', 1200);
+        else { targetMob.milkAt = performance.now(); if (!creative) { st.n--; if (st.n <= 0) slots[sel] = null; } if (!addItem(179, 1)) showHint('Inventory full', 1000); invChanged(); }
+      }
+      return;
+    }
     const tid = target ? getBlock(target.x, target.y, target.z) : 0;
     if (tid === 17 && !shiftDown) { openInventory(3); return; }
     if (tid >= 41 && tid <= 48 && !shiftDown) { openInventory('f', target.x, target.y, target.z); return; }
     if (!shiftDown && (tid === 64 || tid === 65)) { if (first) setBlock(target.x, target.y, target.z, tid === 64 ? 65 : 64); return; }   /* levers flip */
+    if (!shiftDown && tid === 80) { if (first) repairAtAnvil(); return; }   /* the anvil mends what you are holding */
     if (!shiftDown && (tid === 66 || tid === 67)) {   /* buttons stay pressed for a moment */
       if (first && tid === 66) { setBlock(target.x, target.y, target.z, 67); btnT.set(target.x + ',' + target.y + ',' + target.z, 1.5); }
       return;
@@ -2413,6 +2877,17 @@ function act(btn, first) {
   if (btn === 0) {
     if (creative) breakBlock(h.x, h.y, h.z);
   } else if (btn === 2) {
+    if (st && st.id === 172 && [1, 2, 55].indexOf(getBlock(h.x, h.y, h.z)) >= 0 && getBlock(h.x, h.y + 1, h.z) === 0) {   /* the hoe tills grass and dirt into farmland */
+      if (first) {
+        setBlock(h.x, h.y, h.z, 87);
+        if (!creative) { st.d--; if (st.d <= 0) { slots[sel] = null; showHint('Your hoe broke', 1200); } invChanged(); }
+      }
+      return;
+    }
+    if (st && ((st.id >= 160 && st.id <= 162) || st.id === 176) && h.ny > 0 && getBlock(h.x, h.y, h.z) === 87 && getBlock(h.x, h.y + 1, h.z) === 0) {   /* a whole vegetable plants itself as a seedling on farmland */
+      if (first) { plantSeedling(h.x, h.y + 1, h.z, st.id === 176 ? 92 : 88 + st.id - 160); if (!creative) { st.n--; if (st.n <= 0) slots[sel] = null; } invChanged(); }
+      return;
+    }
     if (!st || st.id >= 100) return;
     const bx = h.x + h.nx, by = h.y + h.ny, bz = h.z + h.nz;
     const cur = getBlock(bx, by, bz);
@@ -2433,6 +2908,7 @@ function act(btn, first) {
       }
       let rf = 0;
       if (id === 73) { const fx = -Math.sin(yaw), fz = -Math.cos(yaw); rf = Math.abs(fx) > Math.abs(fz) ? (fx > 0 ? 0 : 1) : (fz > 0 ? 2 : 3); }   /* repeaters point away from you */
+      if (id === 80) rf = Math.abs(Math.sin(yaw)) > Math.abs(Math.cos(yaw)) ? 1 : 0;   /* an anvil's long side is across your view */
       setBlock(bx, by, bz, id, rf);
       if (id >= 41 && id <= 44) getFurnace(bx, by, bz, true);
       if (!creative) { st.n--; if (st.n <= 0) slots[sel] = null; invChanged(); }
@@ -2455,12 +2931,12 @@ const SLOT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 
 /* slots: 0 to 9 are the hotbar, 10 to 39 are the backpack */
 let creative = !(saved && saved.creative === false);
-const slots = new Array(TOTAL).fill(null);
+const slots = new Array(TOTAL + 1).fill(null);   /* the last slot (index TOTAL) is the off-hand */
 let cursor = null, invOpen = false, craftSize = 2, craft = [], craftResult = null, curFurnace = null;
 (function initSlots() {
   const ok = (s) => s && validItem(s.id) && Number.isInteger(s.n) && s.n >= 1 && s.n <= stackMax(s.id);
-  if (saved && Array.isArray(saved.slots) && saved.slots.length === TOTAL) {
-    for (let i = 0; i < TOTAL; i++) {
+  if (saved && Array.isArray(saved.slots) && saved.slots.length >= TOTAL) {
+    for (let i = 0; i <= TOTAL; i++) {
       const s = saved.slots[i];
       if (ok(s)) {
         const o = { id: s.id, n: s.n };
@@ -2502,7 +2978,14 @@ for (let i = 0; i < HOT; i++) {
   hotbarEl.appendChild(s); slotEls.push(s);
   s.addEventListener('mousedown', (e) => { e.stopPropagation(); selectSlot(i); });
 }
-function renderHotbar() { for (let i = 0; i < HOT; i++) paintSlot(slotEls[i], slots[i]); }
+const offEl = makeSlotEl('Q'); offEl.style.marginLeft = '10px'; hotbarEl.appendChild(offEl);   /* the off-hand slot next to the hotbar */
+function renderHotbar() { for (let i = 0; i < HOT; i++) paintSlot(slotEls[i], slots[i]); paintSlot(offEl, slots[TOTAL]); }
+function swapOff() {
+  if (!slots[sel] && !slots[TOTAL]) { showHint('Put an item in the off-hand slot (inventory) first', 1500); return; }
+  const a = slots[sel]; slots[sel] = slots[TOTAL]; slots[TOTAL] = a;
+  invChanged();
+  showHint(slots[TOTAL] ? 'Off-hand: ' + itemName(slots[TOTAL].id) : 'Off-hand empty', 1000);
+}
 
 /* inventory screen */
 const invEl = $('inv'), invGridEl = $('invgrid'), invHotEl = $('invhot'), paletteEl = $('palette'), palWrap = $('palwrap');
@@ -2510,10 +2993,10 @@ const craftGridEl = $('craftgrid'), craftOutEl = $('craftout'), invTitleEl = $('
 const modeBtns = [$('mode1'), $('mode2')];
 const invSlotEls = [];
 let craftSlotEls = [];
-for (let i = 0; i < TOTAL; i++) {
+for (let i = 0; i <= TOTAL; i++) {
   const s = makeSlotEl(i < HOT ? SLOT_KEYS[i] : '');
   s.classList.add('islot'); s.dataset.i = String(i);
-  (i < HOT ? invHotEl : invGridEl).appendChild(s);
+  (i === TOTAL ? $('invoff') : (i < HOT ? invHotEl : invGridEl)).appendChild(s);
   invSlotEls.push(s);
 }
 PALETTE.forEach((id) => {
@@ -2591,7 +3074,7 @@ function renderCraft() {
 }
 function updateCraft() { craftResult = matchRecipe(craft, craftSize); renderCraft(); }
 function renderInventory() {
-  for (let i = 0; i < TOTAL; i++) paintSlot(invSlotEls[i], slots[i]);
+  for (let i = 0; i <= TOTAL; i++) paintSlot(invSlotEls[i], slots[i]);
   invSlotEls.forEach((el, i) => el.classList.toggle('on', i === sel));
 }
 function renderCursor() {
@@ -2852,6 +3335,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.code === 'KeyE' && playing) { openInventory(2); return; }
   if (e.code === 'KeyM' && playing) { setMode(!creative); return; }
+  if (e.code === 'KeyQ' && playing) { swapOff(); return; }
   if (e.code === 'Escape' && noLock && playing) { setPlaying(false); return; }
   if (!playing) return;
   const m = /^Digit([0-9])$/.exec(e.code);
@@ -2878,7 +3362,7 @@ function save() {
   settleFallers();
   if (dead) return;
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ seed: seed, edits: edits, p: [player.x, player.y, player.z], yaw: yaw, pitch: pitch, gen: GEN, time: worldTime, furnaces: furnacesJSON(), slots: slots, creative: creative, vit: { health: vit.health, food: vit.food, sat: vit.sat } }));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ seed: seed, edits: edits, p: [player.x, player.y, player.z], yaw: yaw, pitch: pitch, gen: GEN, time: worldTime, furnaces: furnacesJSON(), grow: growJSON(), slots: slots, creative: creative, vit: { health: vit.health, food: vit.food, sat: vit.sat } }));
   } catch (e) {}
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
@@ -2891,6 +3375,7 @@ window.addEventListener('pagehide', save);
 const MOBS = {
   pig:    { name: 'Pig',    w: 0.9, h: 0.9,  hp: 10, speed: 1.5, hostile: false, drop: [126, 1, 3] },
   cow:    { name: 'Cow',    w: 0.9, h: 1.4,  hp: 10, speed: 1.3, hostile: false, drop: [127, 1, 3] },
+  chicken: { name: 'Chicken', w: 0.5, h: 0.7, hp: 4, speed: 1.4, hostile: false, drop: [169, 1, 1], drop2: [171, 0, 2] },
   zombie: { name: 'Zombie', w: 0.6, h: 1.95, hp: 20, speed: 2.4, hostile: true,  drop: [130, 0, 2], dmg: 3 },
   skeleton: { name: 'Skeleton', w: 0.6, h: 1.95, hp: 20, speed: 2.0, hostile: true, ranged: true, drop: [131, 0, 2], drop2: [132, 0, 2], dmg: 3 },
   spider: { name: 'Spider', w: 1.4, h: 0.9, hp: 16, speed: 3.0, hostile: true, climber: true, leaper: true, neutralDay: true, noBurn: true, reach: 1.5, drop: [140, 0, 2], dmg: 2 }
@@ -2957,6 +3442,19 @@ function buildMob(type, weapon) {
     mpart(head, parts, [0.08, 0.14, 0.08], [-0.25, 0.26, 0.1], [220, 214, 200]);
     mpart(head, parts, [0.08, 0.14, 0.08], [0.25, 0.26, 0.1], [220, 214, 200]);
     for (const dx of [-0.22, 0.22]) for (const dz of [-0.4, 0.4]) legs.push(mpart(root, parts, [0.22, 0.62, 0.22], [dx, 0.62, dz], [84, 54, 36], [0, -0.31, 0]));
+  } else if (type === 'chicken') {
+    const W = [244, 244, 240], WD = [222, 222, 214], BK = [236, 170, 40], RD = [210, 40, 40], EY = [20, 20, 20];
+    mpart(root, parts, [0.36, 0.34, 0.5], [0, 0.42, 0], W);
+    mpart(root, parts, [0.1, 0.24, 0.34], [-0.23, 0.44, 0], WD);
+    mpart(root, parts, [0.1, 0.24, 0.34], [0.23, 0.44, 0], WD);
+    mpart(root, parts, [0.16, 0.2, 0.1], [0, 0.56, -0.3], WD);
+    const head = mpart(root, parts, [0.2, 0.26, 0.2], [0, 0.68, 0.26], W, [0, 0, 0.08]);
+    headG = head;
+    mpart(head, parts, [0.1, 0.06, 0.12], [0, 0, 0.14], BK);
+    mpart(head, parts, [0.06, 0.1, 0.06], [0, -0.1, 0.1], RD);
+    mpart(head, parts, [0.04, 0.04, 0.02], [-0.07, 0.05, 0.105], EY);
+    mpart(head, parts, [0.04, 0.04, 0.02], [0.07, 0.05, 0.105], EY);
+    for (const dx of [-0.08, 0.08]) legs.push(mpart(root, parts, [0.05, 0.3, 0.05], [dx, 0.15, 0], BK, [0, -0.15, 0]));
   } else if (type === 'skeleton') {
     const BN = [214, 214, 206], BD = [92, 92, 88], DK = [20, 20, 20];
     for (const dx of [-0.1, 0.1]) legs.push(mpart(root, parts, [0.14, 0.75, 0.14], [dx, 0.75, 0], BN, [0, -0.375, 0]));
@@ -3177,7 +3675,7 @@ function trySpawnPassive() {
   if (!chunkLoaded(x, z)) return;
   const gy = groundBelow(x, z, H - 1, 64);
   if (gy < 0 || (getBlock(x, gy, z) !== 1 && getBlock(x, gy, z) !== 55) || !skyOpen(x, gy + 1, z)) return;
-  const type = Math.random() < 0.5 ? 'pig' : 'cow', n = 1 + ((Math.random() * 2) | 0);
+  const type = ['pig', 'cow', 'chicken'][(Math.random() * 3) | 0], n = 1 + ((Math.random() * 2) | 0);
   for (let i = 0; i < n; i++) {
     const ox = x + 0.5 + (Math.random() - 0.5) * 3, oz = z + 0.5 + (Math.random() - 0.5) * 3;
     if (!chunkLoaded(ox, oz) || mobHits(MOBS[type], ox, gy + 1, oz) || !mobSolid(Math.floor(ox), gy, Math.floor(oz))) continue;
@@ -3207,12 +3705,12 @@ function attackMob(m) {
   if (dead) return;
   const st = slots[sel];
   let dmg = 1;
-  if (st && isSword(st.id)) dmg = st.id === 139 ? 5.5 : st.id === 149 ? 4 : 4 + (st.id - SWORD_BASE);          /* wooden 4, stone 5, iron 6, diamond 7 */
+  if (st && isSword(st.id)) dmg = st.id === 158 ? 6.5 : st.id === 159 ? 2.5 : st.id === 139 ? 5.5 : st.id === 149 ? 4 : 4 + (st.id - SWORD_BASE);   /* ruby sword 6.5, knife 2.5 */          /* wooden 4, stone 5, iron 6, diamond 7 */
   else { const t = toolOf(st); if (t) dmg = (t.type === 'axe' ? 3 : 2) + (t.lvl !== undefined ? t.lvl : t.tier); }
   if (creative) dmg = 1000;
   else {
     if (attackCool > 0) return;
-    attackCool = 0.5;
+    attackCool = (st && st.id === 159) ? 0.25 : 0.5;   /* the knife swings twice as fast */
     if (!player.onGround && player.vy < 0 && !inWater && !player.fly) dmg *= 1.5;   /* falling hits are critical */
     addExhaustion(0.1);
     if (st && isDur(st.id)) {
@@ -3366,6 +3864,7 @@ function updateMob(m, dt) {
   }
 
   /* pose and colour */
+  if (m.type === 'chicken') { m.eggT = (m.eggT === undefined ? 90 + Math.random() * 150 : m.eggT) - dt; if (m.eggT <= 0) { m.eggT = 150 + Math.random() * 200; layEgg(m.x, m.y + 0.3, m.z); } }   /* chickens lay eggs now and then */
   m.walkT += spd * dt * 2.2;
   const sw = Math.sin(m.walkT) * Math.min(1, spd / 1.5) * 0.9;
   for (let i = 0; i < m.legs.length; i++) {
@@ -3631,7 +4130,7 @@ function rebuildHand(id) {
   while (handGroup.children.length) handGroup.remove(handGroup.children[0]);
   let mesh = null, tile = -1, cube = false;
   if (id >= 100) tile = ITEM_INFO[id] ? ITEM_INFO[id].tile : -1;
-  else if (id > 0) { if (id === BUSH || (id >= 36 && id <= 40) || PASS[id] || FLATB[id]) tile = DEFS[id].f[0]; else cube = true; }
+  else if (id > 0) { if (id === 80) tile = 126; else if (id === BUSH || (id >= 36 && id <= 40) || PASS[id] || FLATB[id]) tile = DEFS[id].f[0]; else cube = true; }
   if (cube) { mesh = new THREE.Mesh(cubeGeo(id), handTexMat); mesh.scale.setScalar(0.38); handKind = 'cube'; }
   else if (tile >= 0) { mesh = new THREE.Mesh(spriteGeo(tile), handMat); mesh.scale.set(-0.52, 0.52, 0.52); handKind = 'item'; }
   else { mesh = new THREE.Mesh(armGeo(), handMat); mesh.scale.set(0.2, 0.2, 0.5); handKind = 'arm'; }
@@ -3665,7 +4164,9 @@ function updateHand(dt) {
 const THROWN = {
   141: { dmg: 0, sp: 18, g: 14, kb: 4, color: 0xf4f8ff, puff: 0xeef3ff },
   142: { dmg: 2, sp: 17, g: 18, kb: 5, color: 0x86868c, puff: 0x9a9aa0, glass: true },
-  143: { dmg: 3, sp: 19, g: 13, kb: 6, color: 0xdfe6f4, puff: 0xeef3ff }
+  143: { dmg: 3, sp: 19, g: 13, kb: 6, color: 0xdfe6f4, puff: 0xeef3ff },
+  152: { dmg: 3, sp: 18, g: 19, kb: 6, color: 0xa8483a, puff: 0xc0604a, glass: true },   /* a brick: heavier than a rock */
+  173: { dmg: 0, sp: 17, g: 16, kb: 3, color: 0xf2e8d0, puff: 0xf8f2e2 }   /* an egg: a gentle shove */
 };
 const balls = [], puffs = [], ballMats = {}, puffMats = {};
 const ballGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2), puffGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
@@ -3730,6 +4231,42 @@ function ballStep(dt) {
   }
 }
 
+/* ---- anvil: hold a worn tool, sword or bow and use the anvil. A second copy of the same thing merges with it (with a little bonus), otherwise one unit of its material restores a quarter ---- */
+const REPAIR_MATS = [[5, 30, 31, 53], [4], [102], [103]];   /* wooden, stone, iron, diamond */
+function repairMats(id) {
+  if (id >= TOOL_BASE && id < TOOL_BASE + 12) return REPAIR_MATS[(id - TOOL_BASE) % 4];
+  if (id >= SWORD_BASE && id < SWORD_BASE + 4) return REPAIR_MATS[id - SWORD_BASE];
+  if (id >= 136 && id <= 139) return [135];
+  if (id >= 146 && id <= 149) return [145];
+  if (id >= 155 && id <= 158) return [154];
+  if (id === 159) return [102];
+  if (id === 172) return [4];
+  return null;
+}
+function repairAtAnvil() {
+  const st = slots[sel];
+  if (!st || !isDur(st.id)) { showHint('Hold a worn tool, sword or bow, then use the anvil', 1800); return; }
+  const max = toolMax(st.id);
+  if (st.d >= max) { showHint('Already in perfect shape', 1000); return; }
+  for (let i = 0; i < TOTAL; i++) {
+    const o = slots[i];
+    if (i !== sel && o && o.id === st.id) {
+      st.d = Math.min(max, st.d + o.d + Math.ceil(max * 0.12)); slots[i] = null;
+      invChanged(); showHint('Combined: ' + st.d + '/' + max, 1200); return;
+    }
+  }
+  const mats = repairMats(st.id);
+  if (mats) for (let i = 0; i < TOTAL; i++) {
+    const o = slots[i];
+    if (o && mats.indexOf(o.id) >= 0) {
+      o.n--; if (o.n <= 0) slots[i] = null;
+      st.d = Math.min(max, st.d + Math.ceil(max * 0.25));
+      invChanged(); showHint('Repaired: ' + st.d + '/' + max, 1200); return;
+    }
+  }
+  showHint('Needs a second ' + itemName(st.id).toLowerCase() + (mats ? ' or its material' : ''), 1800);
+}
+
 /* --------------------------------------------------------------------- loop */
 let last = performance.now(), fpsN = 0, fpsT = 0, saveT = 0, fps = 0;
 function frame(now) {
@@ -3767,7 +4304,7 @@ function frame(now) {
 
   stream();
   lightingStep();
-  if (playing || invOpen) { furnaceTick(dt); fluidStep(dt); gravityStep(dt); }
+  if (playing || invOpen) { furnaceTick(dt); fluidStep(dt); gravityStep(dt); growStep(dt); eggStep(dt); }
   if (invOpen && curFurnace) renderFurnace();
 
   if (playing) {
