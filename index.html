@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Blockfield</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
 <style>
@@ -207,6 +207,21 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 .tslot i { left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 24px; opacity: 0.7; }
 #cursor { position: fixed; z-index: 60; display: none; width: 44px; height: 44px; margin: -22px 0 0 -22px; background: none; border: none; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { #hint { transition: none; } }
+.touch, .touch * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+html, body.touch { overscroll-behavior: none; }
+.tui { touch-action: none; }
+.tui { position: fixed; inset: 0; z-index: 15; }
+.tui.thide { display: none; }
+.tzone { position: absolute; top: 0; bottom: 0; }
+.tzl { left: 0; width: 45%; } .tzr { right: 0; width: 55%; }
+.tstick { position: fixed; display: none; width: 120px; height: 120px; border-radius: 50%; border: 2px solid rgba(255,255,255,.5); background: rgba(255,255,255,.12); pointer-events: none; }
+.tknob { position: absolute; left: 36px; top: 36px; width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,.55); }
+.tbtn { position: fixed; z-index: 25; min-width: 54px; height: 54px; padding: 0 12px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 27px; border: 2px solid rgba(255,255,255,.55); background: rgba(0,0,0,.4); color: #fff; font: 700 15px sans-serif; }
+.tbtn.on { background: rgba(242,193,78,.6); }
+.tbtn.big { width: 76px; height: 76px; border-radius: 38px; }
+.ttop { position: fixed; z-index: 25; top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(12px + env(safe-area-inset-right, 0px)); display: flex; gap: 8px; }
+.ttop .tbtn { position: static; }
+.touch #hotbar { z-index: 16; }
 </style>
 </head>
 <body>
@@ -266,6 +281,7 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
         <p class="lbl" id="craftlbl">Crafting</p>
         <div class="craftrow" id="craftrow"><div id="craftgrid" class="cgrid"></div><div class="arrow"></div><div id="craftout" class="outwrap"></div></div>
         <div class="furnacerow" id="furnacerow" style="display:none"><div class="fcol"><div id="fin" class="outwrap"></div><div class="flame"><i id="flamefill"></i></div><div id="ffuel" class="outwrap"></div></div><div class="cook"><i id="cookfill"></i></div><div id="fout" class="outwrap"></div></div>
+        <div id="chestwrap" style="display:none"><p class="lbl">Chest</p><div id="chestgrid" class="slotgrid"></div></div>
         <p class="lbl">Backpack</p>
         <div id="invgrid" class="slotgrid"></div>
         <p class="lbl">Hotbar</p>
@@ -282,7 +298,8 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="three.min.js"></script>
+<script>window.THREE||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>')</script>
 <script>
 (function () {
 'use strict';
@@ -300,7 +317,7 @@ if (typeof THREE === 'undefined') {
 }
 
 /* ---------------------------------------------------------------- constants */
-const CS = 16, H = 64, NT = 182, TS = 16, EPS = 0.0008, LEAVES = 7;
+const CS = 16, H = 64, NT = 199, TS = 16, EPS = 0.0008, LEAVES = 7;
 const HOT = 10, INV = 30, TOTAL = HOT + INV, STACK = 64;
 const WATER = 19, LAVA = 20, OBSIDIAN = 21, SNOW = 22, ICE = 23, SEA = 20, LAVA_Y = 6, GEN = 3, CACTUS = 34, BUSH = 35;
 const isFluid = (id) => id === WATER || id === LAVA;
@@ -381,6 +398,11 @@ const DEFS = [
   , mk(178, 178, 178), mk(179, 179, 179)   /* 98 seagrass, 99 kelp */
 ];
 
+/* second block range (200 up): 200 red mushroom, 201 brown mushroom, 202 sugarcane, 203 allium, 204 oxeye daisy */
+['Red Mushroom', 'Brown Mushroom', 'Sugarcane', 'Allium', 'Oxeye Daisy'].forEach((nm, i) => {
+  NAMES[200 + i] = nm; DEFS[200 + i] = mk(182 + i, 182 + i, 182 + i); TRANSP[200 + i] = 1; PASS[200 + i] = 1; FLATB[200 + i] = 1;
+});
+NAMES[205] = 'Bed'; DEFS[205] = mk(187, 188, 5); NAMES[206] = 'Chest'; DEFS[206] = mk(189, 190, 5);   NAMES[207] = 'Wild Rice'; DEFS[207] = mk(198, 198, 198); TRANSP[207] = 1; PASS[207] = 1; FLATB[207] = 1;   /* 205 bed, 206 chest, 207 wild rice */
 /* items: 100 to 103 are materials, 110 to 121 are tools (type * 4 + tier) */
 const TIERS = [
   { name: 'Wooden',  speed: 2, dur: 59,   mat: 5,   m: [186, 148, 95],  d: [128, 96, 56] },
@@ -411,6 +433,7 @@ ITEM_INFO[154] = { name: 'Ruby', tile: 133 }; ITEM_INFO[159] = { name: 'Knife', 
 [['Hoe', 159], ['Egg', 160], ['Fried Egg', 161], ['Veggie Pie', 162]].forEach((e, i) => { ITEM_INFO[172 + i] = { name: e[0], tile: e[1] }; });
 [['Wheat', 165], ['Flour', 166], ['Bread', 167], ['Bowl of Milk', 168], ['Cheese', 169], ['Dough', 170], ['Raw Pizza', 171], ['Pizza', 172]].forEach((e, i) => { ITEM_INFO[176 + i] = { name: e[0], tile: e[1] }; });
 [['Kelp', 180], ['Dried Kelp', 181]].forEach((e, i) => { ITEM_INFO[184 + i] = { name: e[0], tile: e[1] }; });
+[['Fishing Rod', 191], ['Raw Fish', 192], ['Cooked Fish', 193], ['Raw Crab', 194], ['Cooked Crab', 195], ['Rice', 196], ['Sushi', 197]].forEach((e, i) => { ITEM_INFO[186 + i] = { name: e[0], tile: e[1] }; });   /* 186 rod, 187/188 fish, 189/190 crab, 191 rice, 192 sushi */
 ['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[155 + i] = { name: 'Ruby ' + nm, tile: 134 + i }; });
 ['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[136 + i] = { name: 'Copper ' + nm, tile: 93 + i }; });
 const isSword = (id) => (id >= SWORD_BASE && id < SWORD_BASE + 4) || id === 139 || id === 149 || id === 158 || id === 159;   /* 158 ruby sword, 159 knife */
@@ -425,15 +448,16 @@ function toolOf(st) {
   return { type: TOOL_TYPES[(k / 4) | 0], tier: k % 4 };
 }
 const toolMax = (id) => (id >= 155 && id <= 158) ? 750 : id === 159 ? 90 : id === 172 ? 120 : (id >= 146 && id <= 149) ? 32 : (id >= 136 && id <= 139) ? 190 : id === 133 ? 385 : TIERS[isSword(id) ? id - SWORD_BASE : (id - TOOL_BASE) % 4].dur;
-const stackMax = (id) => (isDur(id) || id === 106 || id === 107) ? 1 : (id === 105 ? 16 : STACK);
-const itemName = (id) => id < 100 ? NAMES[id] : ITEM_INFO[id].name;
-const itemTile = (id) => id === 80 ? 126 : id < 100 ? DEFS[id].f[0] : ITEM_INFO[id].tile;
-const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99];
+const stackMax = (id) => (isDur(id) || id === 106 || id === 107 || id === 186) ? 1 : (id === 105 ? 16 : STACK);
+const isBlk = (id) => id < 100 || id >= 200;   /* blocks live at 0 to 99 and 200 up, items at 100 to 199 */
+const itemName = (id) => isBlk(id) ? NAMES[id] : ITEM_INFO[id].name;
+const itemTile = (id) => id === 80 ? 126 : isBlk(id) ? DEFS[id].f[0] : ITEM_INFO[id].tile;
+const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207];
 const PALETTE = PLACEABLE.concat([100, 101, 102, 103, 104, 105, 106, 107, 108, 109]);
 for (let i = 0; i < 12; i++) PALETTE.push(TOOL_BASE + i);
 for (let i = 0; i < 4; i++) PALETTE.push(SWORD_BASE + i);
 [126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185].forEach((id) => PALETTE.push(id));
-const validItem = (id) => Number.isInteger(id) && (PLACEABLE.indexOf(id) >= 0 || (id >= 100 && id <= 109) || isDur(id) || (id >= 126 && id <= 135) || id === 140 || (id >= 141 && id <= 145) || id === 150 || (id >= 151 && id <= 154) || (id >= 160 && id <= 185));
+const validItem = (id) => Number.isInteger(id) && (PLACEABLE.indexOf(id) >= 0 || (id >= 100 && id <= 109) || isDur(id) || (id >= 126 && id <= 135) || id === 140 || (id >= 141 && id <= 145) || id === 150 || (id >= 151 && id <= 154) || (id >= 160 && id <= 199));
 function makeStack(id, n) { const s = { id: id, n: n }; if (isDur(id)) s.d = toolMax(id); return s; }
 /* food restores hunger points (20 = full bar) and saturation */
 const FOOD = { 150: { food: 4, sat: 9.6, heal: 8 }, 104: { food: 4, sat: 2.4 }, 126: { food: 3, sat: 1.8 }, 127: { food: 3, sat: 1.8 }, 128: { food: 8, sat: 12.8 }, 129: { food: 8, sat: 12.8 }, 130: { food: 2, sat: 0.4 },
@@ -457,6 +481,8 @@ bi(24, 2, 'axe', -1); bi(27, 2, 'axe', -1); bi(30, 2, 'axe', -1); bi(31, 2, 'axe
 bi(32, 0.2, null, -1); bi(33, 0.2, null, -1); bi(34, 0.4, null, -1); bi(35, 0, null, -1);
 bi(36, 0, null, -1); bi(41, 3.5, 'pick', 0); bi(49, 0.6, 'shovel', -1);
 bi(50, 2, 'axe', -1); bi(51, 2, 'axe', -1); bi(52, 2, 'axe', -1); bi(53, 2, 'axe', -1); bi(54, 0.2, null, -1); bi(55, 0.6, 'shovel', -1); bi(56, 3, 'pick', 1); bi(57, 3, 'pick', 0); bi(58, 3, 'pick', 0); bi(59, 3, 'pick', 0); bi(60, 3, 'pick', 0);
+for (let i = 200; i <= 204; i++) bi(i, 0, null, -1);
+bi(205, 0.3, null, -1); bi(206, 2.5, 'axe', -1); bi(207, 0, null, -1);
 bi(61, 0, null, -1); bi(62, 0.5, null, -1); bi(64, 0.5, null, -1); bi(66, 0.5, null, -1); bi(68, 0.5, null, -1); bi(70, 3, 'pick', 0); bi(71, 3, 'pick', 0); bi(73, 0.3, null, -1); bi(75, 3, 'pick', 2); bi(76, 3, 'pick', 1); bi(77, 5, 'pick', 0); bi(80, 5, 'pick', 0); bi(78, 5, 'pick', 1); bi(79, 5, 'pick', 2); bi(81, 0.6, 'shovel', -1); bi(82, 3, 'pick', 2); bi(83, 5, 'pick', 2); bi(84, 0, null, -1); bi(85, 0, null, -1); bi(86, 0, null, -1); bi(87, 0.6, 'shovel', -1); bi(88, 0, null, -1); bi(89, 0, null, -1); bi(90, 0, null, -1); bi(91, 0, null, -1); bi(92, 0, null, -1); bi(93, 0, null, -1); bi(94, 0, null, -1); bi(95, 0, null, -1); bi(96, 0, null, -1); bi(97, 0, null, -1); bi(98, 0, null, -1); bi(99, 0, null, -1);
 const binfo = (id) => BINFO[canon(id)];
 /* what a block turns into when you mine it (no furnace yet, so iron ore gives ingots) */
@@ -478,6 +504,7 @@ function dropOf(id) {
   if (id >= 88 && id <= 90) return 160 + id - 88;   /* a seedling gives its vegetable back */
   if (id === 87) return 2;   /* farmland turns back into dirt */
   if (id === 99) return 184;   /* kelp gives kelp */
+  if (id === 207) return 191;   /* wild rice gives rice */
   if (id === 91 || id === 92) return 176;   /* wheat */
   if (id === 18) return 0;
   return id;
@@ -501,6 +528,10 @@ function shapeless(list, out, n) { RECIPES.push({ list: list.slice().sort((a, b)
 shapeless([6], 5, 4);                  /* log -> 4 planks */
 shaped([[5], [5]], 100, 4);            /* 2 planks -> 4 sticks */
 shaped([[5, 5], [5, 5]], 17, 1);       /* 4 planks -> crafting table */
+shaped([[171, 171, 171], [5, 5, 5]], 205, 1);   /* bed: 3 feathers over 3 planks */
+shaped([[5, 5, 5], [5, 0, 5], [5, 5, 5]], 206, 1);   /* chest: a ring of 8 planks */
+shaped([[0, 0, 100], [0, 100, 171], [100, 0, 171]], 186, 1);   /* fishing rod: sticks and feathers */
+shapeless([191, 185, 187], 192, 1); shapeless([191, 185, 189], 192, 1);   /* sushi: rice, dried kelp and raw fish or crab */
 shaped([[4, 4], [4, 4]], 12, 4);       /* 4 cobblestone -> 4 stone bricks */
 TIERS.forEach((tr, r) => {
   const M = tr.mat, S = 100;
@@ -1443,6 +1474,70 @@ renderer.setSize(window.innerWidth, window.innerHeight);
     set(181, x, y, edge ? [24, 38, 20] : (((x + y) % 3) === 0 ? [58, 84, 42] : [38, 56, 30]), (rnd() - 0.5) * 6);
   }
 })();
+/* ---- red and brown mushroom, sugarcane, allium, oxeye daisy (tiles 182 to 186) ---- */
+(function paintPlants2() {
+  const rnd = mulberry32(1357);
+  const set = (t, x, y, c, v) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) { v = v || 0; px(t, x, y, c[0] + v, c[1] + v, c[2] + v); } };
+  const cap = (t, top, rows, hw, col, dark) => { for (let r = 0; r < rows; r++) { const w = Math.min(hw, 2 + r * 2); for (let x = -w; x <= w; x++) set(t, 8 + x, top + r, (r === rows - 1) ? dark : col, (rnd() - 0.5) * 8); } };
+  const stem = (t, y0, c) => { for (let y = y0; y < 16; y++) { set(t, 7, y, c, (rnd() - 0.5) * 6); set(t, 8, y, [c[0] - 24, c[1] - 24, c[2] - 20]); } };
+  stem(182, 9, [226, 214, 190]); cap(182, 4, 5, 5, [206, 38, 36], [150, 24, 28]);
+  [[6, 5], [9, 6], [11, 7], [4, 7], [8, 4]].forEach((c) => set(182, c[0], c[1], [250, 246, 238]));
+  stem(183, 11, [196, 176, 140]); cap(183, 7, 4, 4, [140, 96, 58], [98, 64, 38]);
+  [[7, 8], [9, 9]].forEach((c) => set(183, c[0], c[1], [172, 126, 84]));
+  [[3, 14], [7, 15], [12, 13]].forEach((b, k) => { for (let y = 15; y > 15 - b[1] + (k ? 0 : 1) - 1 && y >= 0; y--) { set(184, b[0] + k, y, [112, 186, 70], (rnd() - 0.5) * 8); set(184, b[0] + k + 1, y, [78, 146, 52]); if ((y + k) % 5 === 0) { set(184, b[0] + k, y, [168, 220, 110]); set(184, b[0] + k + 1, y, [120, 176, 80]); } } });
+  stem(185, 7, [60, 130, 44]); [[6, 3], [8, 2], [9, 4], [7, 5], [10, 3]].forEach((c) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) set(185, c[0] + dx, c[1] + dy, (dx + dy) % 2 ? [166, 96, 214] : [138, 66, 188], (rnd() - 0.5) * 8); });
+  stem(186, 8, [60, 130, 44]);
+  for (let a = 0; a < 8; a++) { const px0 = 8 + Math.round(Math.cos(a * 0.785) * 3), py0 = 5 + Math.round(Math.sin(a * 0.785) * 3); set(186, px0, py0, [248, 248, 244]); set(186, px0 + 1, py0, [230, 230, 224]); }
+  set(186, 8, 5, [250, 200, 40]); set(186, 7, 5, [240, 180, 30]); set(186, 8, 6, [240, 180, 30]); set(186, 7, 6, [226, 164, 28]);
+})();
+/* ---- bed top and side, chest top and side (tiles 187 to 190) ---- */
+(function paintBedChest() {
+  const rnd = mulberry32(9753);
+  const set = (t, x, y, c, v) => { v = v || 0; px(t, x, y, c[0] + v, c[1] + v, c[2] + v); };
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    const edge = x === 0 || x === 15 || y === 0 || y === 15, v = (rnd() - 0.5) * 8;
+    set(187, x, y, edge ? [112, 76, 44] : (y < 5 ? [244, 244, 240] : [196, 44, 48]), v);
+    set(188, x, y, y < 8 ? [196, 44, 48] : (y < 10 ? [150, 28, 34] : [150, 110, 62]), v);
+    set(189, x, y, edge ? [88, 58, 30] : ((x + y) % 5 === 0 ? [156, 112, 62] : [172, 126, 72]), v);
+    set(190, x, y, edge ? [88, 58, 30] : (y === 6 ? [64, 40, 22] : [166, 120, 68]), v);
+  }
+  for (let y = 5; y <= 8; y++) for (let x = 7; x <= 8; x++) set(190, x, y, y === 5 ? [150, 150, 156] : [226, 190, 70]);
+})();
+/* ---- fishing rod, fish, crab, rice, sushi, wild rice (tiles 191 to 198) ---- */
+(function paintFishArt() {
+  const rnd = mulberry32(8642);
+  const set = (t, x, y, c, v) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) { v = v || 0; px(t, x, y, c[0] + v, c[1] + v, c[2] + v); } };
+  for (let i = 0; i < 12; i++) { set(191, 2 + i, 13 - i, [150, 110, 60]); set(191, 3 + i, 13 - i, [104, 76, 40]); }
+  for (let y = 1; y < 12; y++) set(191, 14, y, [226, 226, 230]);
+  set(191, 13, 12, [226, 226, 230]); set(191, 12, 12, [226, 226, 230]);
+  const fish = (t, top, belly, fin) => {
+    for (let y = 4; y <= 11; y++) for (let x = 2; x <= 12; x++) {
+      const e = ((x - 7) / 5.2) ** 2 + ((y - 7.5) / 3.3) ** 2;
+      if (e <= 1) set(t, x, y, y > 8 ? belly : top, (rnd() - 0.5) * 10);
+    }
+    for (let k = 0; k < 4; k++) for (let y = 7 - k; y <= 8 + k; y++) set(t, 12 + k, y, fin);
+    set(t, 4, 6, [20, 20, 24]); set(t, 7, 4, fin); set(t, 8, 4, fin);
+  };
+  fish(192, [104, 134, 164], [190, 204, 214], [76, 104, 136]);
+  fish(193, [196, 130, 66], [226, 176, 110], [150, 94, 44]);
+  const crab = (t, body, claw) => {
+    for (let y = 7; y <= 12; y++) for (let x = 3; x <= 12; x++) if (((x - 7.5) / 5) ** 2 + ((y - 9.5) / 2.8) ** 2 <= 1) set(t, x, y, body, (rnd() - 0.5) * 10);
+    [[2, 4], [3, 4], [2, 5], [3, 5], [12, 4], [13, 4], [12, 5], [13, 5], [3, 6], [12, 6]].forEach((c) => set(t, c[0], c[1], claw));
+    [[2, 12], [3, 13], [12, 13], [13, 12], [2, 10], [13, 10]].forEach((c) => set(t, c[0], c[1], claw));
+    set(t, 6, 7, [20, 20, 24]); set(t, 9, 7, [20, 20, 24]);
+  };
+  crab(194, [150, 96, 84], [120, 70, 62]); crab(195, [230, 72, 50], [190, 44, 32]);
+  for (let y = 7; y <= 13; y++) for (let x = 8 - (y - 6); x <= 8 + (y - 6); x++) set(196, x, y, ((x * 3 + y * 5) % 4 === 0) ? [226, 220, 196] : [246, 244, 236], (rnd() - 0.5) * 6);
+  for (let y = 7; y <= 13; y++) for (let x = 2; x <= 13; x++) {
+    const band = y === 10 || y === 11;
+    set(197, x, y, band ? [28, 46, 32] : (y < 10 ? [242, 132, 112] : [246, 244, 236]), (rnd() - 0.5) * 8);
+  }
+  for (let x = 3; x <= 12; x += 3) { set(197, x, 8, [252, 190, 170]); set(197, x + 1, 9, [226, 106, 88]); }
+  [[4, 15], [8, 15], [12, 15]].forEach((b, k) => {
+    for (let y = 15; y >= 5; y--) { const x = b[0] + (y > 11 ? 0 : (y > 8 ? (k - 1) : 2 * (k - 1))); set(198, x, y, [74, 150, 54], (rnd() - 0.5) * 8); }
+    for (let y = 1; y <= 6; y++) { const x = b[0] + 2 * (k - 1); set(198, x, y, [226, 196, 84], (rnd() - 0.5) * 8); set(198, x + 1, y + 1, [196, 164, 60]); }
+  });
+})();
 const SKY = 0x8cc0ee;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(SKY);
@@ -1513,6 +1608,13 @@ scene.add(stars);
 
 const DAY_LEN = 600;
 let worldTime = (saved && Number.isFinite(saved.time)) ? saved.time : DAY_LEN * 0.06;
+let bedSpawn = (saved && saved.bed && Number.isFinite(saved.bed.x) && Number.isFinite(saved.bed.y) && Number.isFinite(saved.bed.z)) ? { x: saved.bed.x, y: saved.bed.y, z: saved.bed.z } : null;
+function sleepIn(x, y, z) {
+  bedSpawn = { x: x, y: y, z: z };
+  if (((worldTime / DAY_LEN) % 1) >= 0.5) { worldTime = (Math.floor(worldTime / DAY_LEN) + 1.06) * DAY_LEN; clearHostiles(); showHint('You slept through the night. Spawn point set', 2400); }
+  else showHint('Spawn point set (you can only sleep at night)', 2200);
+  changed = true;
+}
 const SKY_DAY = [0.549, 0.753, 0.933], SKY_NIGHT = [0.02, 0.035, 0.1], SKY_DUSK = [0.9, 0.52, 0.3];
 let daylight = 1, sunH = 1, envMode = 0;
 function smoothstep(a, b, v) { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); }
@@ -1731,10 +1833,37 @@ function genChunk(cx, cz) {
     const r = hash2(wx + 131, wz + 17);
     let pid = 0;
     if (r < 0.012) pid = 93;
-    else if (r < 0.012 + (b === 0 ? 0.05 : 0.02)) pid = 94 + ((hash2((wx >> 3) + 7, (wz >> 3) + 3) * 4) | 0);
+    else if (r < 0.012 + (b === 0 ? 0.05 : 0.02)) { const k = (hash2((wx >> 3) + 7, (wz >> 3) + 3) * 6) | 0; pid = k < 4 ? 94 + k : 199 + k; }
     if (!pid) continue;
     data[x + (z << 4) + ((h + 1) << 8)] = pid;
     if (h + 1 > maxY) maxY = h + 1;
+  }
+  /* mushrooms in forests, sugarcane on beaches next to water */
+  for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
+    const i = x + z * 16, wx = cx * CS + x, wz = cz * CS + z, h = hts[i], b = bio[i];
+    if (h < SEA || h > 40 || h + 4 >= H) continue;
+    const fl0 = data[x + (z << 4) + (h << 8)];
+    if (b === 1 && h > SEA && fl0 === 1 && data[x + (z << 4) + ((h + 1) << 8)] === 0 && hash2(wx + 211, wz + 37) < 0.012) {
+      data[x + (z << 4) + ((h + 1) << 8)] = 200 + ((hash2(wx + 3, wz + 9) * 2) | 0); if (h + 1 > maxY) maxY = h + 1;
+    } else if (h === SEA && fl0 === 8 && data[x + (z << 4) + ((h + 1) << 8)] === 0 && hash2(wx + 313, wz + 71) < 0.18) {
+      let wet = false;
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach((d) => { const nx = x + d[0], nz = z + d[1]; if (nx >= 0 && nx < 16 && nz >= 0 && nz < 16 && data[nx + (nz << 4) + (h << 8)] === WATER) wet = true; });
+      if (!wet) continue;
+      const n = 1 + ((hash2(wx + 17, wz + 29) * 3) | 0);
+      for (let k = 1; k <= n; k++) data[x + (z << 4) + ((h + k) << 8)] = 202;
+      if (h + n > maxY) maxY = h + n;
+    }
+  }
+  /* wild rice on grassy shores */
+  for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
+    const i = x + z * 16, wx = cx * CS + x, wz = cz * CS + z, h = hts[i];
+    if (h !== SEA || h + 2 >= H) continue;
+    const fl1 = data[x + (z << 4) + (h << 8)];
+    if ((fl1 !== 1 && fl1 !== 2) || data[x + (z << 4) + ((h + 1) << 8)] !== 0 || hash2(wx + 419, wz + 83) >= 0.25) continue;
+    let wet = false;
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach((d) => { const nx = x + d[0], nz = z + d[1]; if (nx >= 0 && nx < 16 && nz >= 0 && nz < 16 && data[nx + (nz << 4) + (h << 8)] === WATER) wet = true; });
+    if (!wet) continue;
+    data[x + (z << 4) + ((h + 1) << 8)] = 207; if (h + 1 > maxY) maxY = h + 1;
   }
   /* seagrass and kelp on the sea floor (kelp stands in the deeper water and always leaves water above it) */
   for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
@@ -2246,7 +2375,7 @@ function meshChunk(c) {
       flat(x, y, z, 0.06, 0.06, 0.94, 0.94, y + 0.1, def.f[0], 0.95, true, getFl(x, y, z) & 3);
       continue;
     }
-    if (id === BUSH || id === 64 || id === 65 || (id >= 84 && id <= 86) || (id >= 88 && id <= 99)) {
+    if (id === BUSH || id === 64 || id === 65 || (id >= 84 && id <= 86) || (id >= 88 && id <= 99) || (id >= 200 && id <= 204) || id === 207) {
       /* a plant (or a lever): two crossed vertical sheets, drawn from both sides */
       const bt = def.f[0], bu0 = bt / NT + EPS, bu1 = (bt + 1) / NT - EPS, bv = gm.vc;
       const be = sky(x, y, z), bb = LBT[Math.round(lightAt(x, y, z) * 4)];
@@ -2398,7 +2527,7 @@ function die(cause) {
 }
 function respawn() {
   vit.health = 20; vit.food = 20; vit.sat = 5; vit.exh = 0; vit.regenT = 0; hurtT = 0;
-  const sp = getSpawn(); player.x = sp.x; player.y = sp.y; player.z = sp.z;
+  let sp = getSpawn(); if (bedSpawn && getBlock(bedSpawn.x, bedSpawn.y, bedSpawn.z) === 205) sp = { x: bedSpawn.x + 0.5, y: bedSpawn.y + 1.05, z: bedSpawn.z + 0.5 }; player.x = sp.x; player.y = sp.y; player.z = sp.z;
   air = AIR_MAX; drownT = 0; lavaT = 0.5; burnT = 0; burnTick = 0; cactusT = 0.5;
   player.vx = 0; player.vy = 0; player.vz = 0; fallPeak = player.y;
   dead = false;
@@ -2466,7 +2595,7 @@ function fxStep(dt) {
   if (fxRegen > 0 && !dead && !creative) { fxRegen -= dt; fxTick += dt; if (fxTick >= 1.5) { fxTick = 0; vit.health = Math.min(20, vit.health + 1); } } else fxTick = 0;
 }
 function eatStep(dt) {
-  fxStep(dt);
+  fxStep(dt); fishStep(dt);
   const st = slots[sel], f = st && FOOD[st.id];
   if (dead || creative || held !== 2 || !f || (vit.food >= 20 && !f.heal)) {
     if (eatT > 0) { eatT = 0; eatBarEl.style.display = 'none'; }
@@ -2729,6 +2858,27 @@ function furnaceTick(dt) {
     if (bid !== want) setBlock(p[0], p[1], p[2], want);
   }
 }
+/* chests: 27 slots each, keyed by position like furnaces */
+const chests = new Map(); let curChest = null;
+function getChest(x, y, z) { const k = fkey(x, y, z); let c = chests.get(k); if (!c) { c = new Array(27).fill(null); chests.set(k, c); } return c; }
+function chestsJSON() { const o = {}; chests.forEach((c, k) => { if (c.some(Boolean)) o[k] = c; }); return o; }
+(function loadChests() {
+  if (!sameGen || !saved || !saved.chests || typeof saved.chests !== 'object') return;
+  for (const k in saved.chests) {
+    if (!/^-?\d+,\d+,-?\d+$/.test(k) || !Array.isArray(saved.chests[k])) continue;
+    const c = new Array(27).fill(null);
+    for (let i = 0; i < 27; i++) {
+      const t = saved.chests[k][i];
+      if (t && validItem(t.id) && Number.isInteger(t.n) && t.n >= 1 && t.n <= stackMax(t.id)) { const st = makeStack(t.id, t.n); if (Number.isFinite(t.d)) st.d = t.d; c[i] = st; }
+    }
+    chests.set(k, c);
+  }
+})();
+function dropChest(x, y, z) {
+  const k = fkey(x, y, z), c = chests.get(k);
+  chests.delete(k);
+  if (c && !creative) for (const t of c) if (t && !addItem(t.id, t.n, t.d)) showHint('Inventory full', 1000);
+}
 function dropFurnace(x, y, z) {
   const k = fkey(x, y, z), f = furnaces.get(k);
   furnaces.delete(k);
@@ -2770,6 +2920,7 @@ function breakBlock(x, y, z) {
   supportCheck(x, y + 1, z);
   torchSupport(x, y, z);
   if (old >= 41 && old <= 48) dropFurnace(x, y, z);
+  if (old === 206) dropChest(x, y, z);
   if (creative) return;
   addExhaustion(0.005);
   if (old === 7 && Math.random() < 0.08) addItem(104, 1);
@@ -2818,6 +2969,34 @@ function placeFluid(x, y, z, id) {
     if (getBlock(nx, ny, nz) === LAVA) setBlock(nx, ny, nz, getF(nx, ny, nz) === 0 ? OBSIDIAN : 4);
   }
 }
+PALETTE.push(186, 187, 188, 189, 190, 191, 192);
+FOOD[187] = { food: 2, sat: 0.4 }; FOOD[188] = { food: 6, sat: 9.6 }; FOOD[189] = { food: 2, sat: 0.4 }; FOOD[190] = { food: 7, sat: 10 }; FOOD[192] = { food: 8, sat: 12.8, heal: 4 };
+SMELT[187] = [188, 1]; SMELT[189] = [190, 1];
+/* fishing: right-click water with a rod, wait for a bite, right-click again to reel in */
+let fishing = null;
+function useRod() {
+  if (fishing) {
+    const f = fishing; fishing = null;
+    if (!f.bite) { showHint('You reeled in too early', 1200); return; }
+    const r = Math.random(), id = r < 0.6 ? 187 : (r < 0.85 ? 189 : (r < 0.95 ? 184 : 100));
+    if (!addItem(id, 1)) showHint('Inventory full', 1000); else showHint('You caught ' + itemName(id), 1600);
+    invChanged(); return;
+  }
+  camera.getWorldDirection(dirVec); eyeVec.copy(camera.position);
+  const h = raycast(eyeVec, dirVec, 8, true);
+  if (!h || getBlock(h.x, h.y, h.z) !== WATER) { showHint('Aim the rod at water', 1200); return; }
+  fishing = { x: h.x + 0.5, y: h.y, z: h.z + 0.5, t: 0, wait: 2.5 + Math.random() * 6, bite: false, bt: 0 };
+  showHint('Line cast. Right-click again when something bites', 2400);
+}
+function fishStep(dt) {
+  const f = fishing;
+  if (!f) return;
+  const hs = slots[sel];
+  if (!hs || hs.id !== 186 || Math.hypot(player.x - f.x, player.z - f.z) > 14) { fishing = null; return; }
+  f.t += dt;
+  if (!f.bite && f.t >= f.wait) { f.bite = true; showHint('Something bit! Right-click to reel in', 1800); }
+  else if (f.bite) { f.bt += dt; if (f.bt > 2) { fishing = null; showHint('It got away', 1200); } }
+}
 function useBucket(st) {
   camera.getWorldDirection(dirVec); eyeVec.copy(camera.position);
   const h = raycast(eyeVec, dirVec, 5, true);
@@ -2856,6 +3035,8 @@ function act(btn, first) {
     }
     const tid = target ? getBlock(target.x, target.y, target.z) : 0;
     if (tid === 17 && !shiftDown) { openInventory(3); return; }
+    if (tid === 206 && !shiftDown) { openInventory('c', target.x, target.y, target.z); return; }
+    if (tid === 205 && !shiftDown) { if (first) sleepIn(target.x, target.y, target.z); return; }
     if (tid >= 41 && tid <= 48 && !shiftDown) { openInventory('f', target.x, target.y, target.z); return; }
     if (!shiftDown && (tid === 64 || tid === 65)) { if (first) setBlock(target.x, target.y, target.z, tid === 64 ? 65 : 64); return; }   /* levers flip */
     if (!shiftDown && tid === 80) { if (first) repairAtAnvil(); return; }   /* the anvil mends what you are holding */
@@ -2864,6 +3045,7 @@ function act(btn, first) {
       return;
     }
     if (st && (st.id === 105 || st.id === 106 || st.id === 107)) { if (first) useBucket(st); return; }
+    if (st && st.id === 186) { if (first) useRod(); return; }
     if (st && THROWN[st.id]) { if (first) throwItem(); return; }   /* snowballs and rocks are thrown, one per click */
     if (st && AGE_PREV[tid] && toolOf(st) && toolOf(st).type === 'axe') {   /* an axe scrapes weathering off, one stage back */
       if (first) {
@@ -2888,12 +3070,12 @@ function act(btn, first) {
       if (first) { plantSeedling(h.x, h.y + 1, h.z, st.id === 176 ? 92 : 88 + st.id - 160); if (!creative) { st.n--; if (st.n <= 0) slots[sel] = null; } invChanged(); }
       return;
     }
-    if (!st || st.id >= 100) return;
+    if (!st || !isBlk(st.id)) return;
     const bx = h.x + h.nx, by = h.y + h.ny, bz = h.z + h.nz;
     const cur = getBlock(bx, by, bz);
     if ((cur === 0 || isFluid(cur)) && !(st.id !== 36 && !FLATB[st.id] && intersectsPlayer(bx, by, bz))) {
       let id = st.id;
-      if (FLATB[id]) { const sup = getBlock(bx, by - 1, bz); if (sup === 0 || PASS[sup] || isFluid(sup) || sup === BUSH || (sup >= 36 && sup <= 40)) return; }   /* wires, switches and plates need a floor */
+      if (FLATB[id]) { const sup = getBlock(bx, by - 1, bz); if (sup === 0 || (PASS[sup] && sup !== 202) || isFluid(sup) || sup === BUSH || (sup >= 36 && sup <= 40)) return; }   /* wires, switches and plates need a floor */
       const la = LOGAXIS[id];
       if (la) id = h.nx !== 0 ? la[0] : (h.nz !== 0 ? la[1] : id);
       if (id === 36) {
@@ -3031,6 +3213,9 @@ function renderFurnace() {
   flameFillEl.style.width = (f.burnMax > 0 ? Math.round(100 * f.burn / f.burnMax) : 0) + '%';
   cookFillEl.style.width = Math.round(100 * f.cook / COOK_TIME) + '%';
 }
+const chestWrapEl = $('chestwrap'), chestGridEl = $('chestgrid'), chestSlotEls = [];
+for (let i = 0; i < 27; i++) { const el = makeSlotEl(''); el.classList.add('hslot'); el.dataset.h = i; chestGridEl.appendChild(el); chestSlotEls.push(el); }
+function renderChest() { if (curChest) for (let i = 0; i < 27; i++) paintSlot(chestSlotEls[i], curChest[i]); }
 function furnaceClick(which, btn) {
   const f = curFurnace, c = cursor;
   if (!f) return;
@@ -3081,7 +3266,7 @@ function renderCursor() {
   if (cursor) { cursorEl.style.display = 'block'; paintSlot(cursorEl, cursor); }
   else cursorEl.style.display = 'none';
 }
-function invChanged() { renderHotbar(); if (invOpen) { renderInventory(); furnaceSig = ''; renderFurnace(); } changed = true; }
+function invChanged() { renderHotbar(); if (invOpen) { renderInventory(); furnaceSig = ''; renderFurnace(); renderChest(); } changed = true; }
 function updateModeUI() {
   modeBtns.forEach((b) => { b.textContent = creative ? 'Mode: Creative' : 'Mode: Survival'; });
   palWrap.style.display = creative ? '' : 'none';
@@ -3155,23 +3340,24 @@ function openInventory(size, fx, fy, fz) {
   invOpen = true;
   playing = false; held = -1;
   for (const k in keys) keys[k] = false;
-  const isF = size === 'f';
-  buildCraftGrid(isF ? 2 : (size || 2));
+  const isF = size === 'f', isC = size === 'c';
+  buildCraftGrid((isF || isC) ? 2 : (size || 2));
+  curChest = isC ? getChest(fx, fy, fz) : null; chestWrapEl.style.display = isC ? '' : 'none';
   curFurnace = isF ? getFurnace(fx, fy, fz, true) : null;
   furnaceSig = '';
-  craftRowEl.style.display = isF ? 'none' : '';
+  craftRowEl.style.display = (isF || isC) ? 'none' : '';
   furnaceRowEl.style.display = isF ? 'flex' : 'none';
-  craftLblEl.textContent = isF ? 'Furnace' : 'Crafting';
-  invTitleEl.textContent = isF ? 'Furnace' : (size === 3 ? 'Crafting table' : 'Inventory');
+  craftLblEl.textContent = isF ? 'Furnace' : (isC ? 'Chest' : 'Crafting');
+  invTitleEl.textContent = isF ? 'Furnace' : isC ? 'Chest' : (size === 3 ? 'Crafting table' : 'Inventory');
   invEl.classList.remove('hide');
-  renderInventory(); renderCraft(); renderCursor(); updateModeUI();
+  renderInventory(); renderChest(); renderCraft(); renderCursor(); updateModeUI();
   cursorEl.style.left = mx + 'px'; cursorEl.style.top = my + 'px';
   try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) {}
 }
 function closeInventory(relock) {
   if (!invOpen) return;
   for (let i = 0; i < craft.length; i++) { const s = craft[i]; if (s) addItem(s.id, s.n, s.d); }
-  craft = []; craftResult = null; curFurnace = null;
+  craft = []; craftResult = null; curFurnace = null; curChest = null;
   if (cursor) { if (!creative) addItem(cursor.id, cursor.n, cursor.d); cursor = null; }
   invOpen = false;
   invEl.classList.add('hide');
@@ -3197,6 +3383,7 @@ invEl.addEventListener('mousedown', (e) => {
   }
   else if (t.classList.contains('tslot')) { cursor = null; renderCursor(); }
   else if (t.classList.contains('fslot')) furnaceClick(t.dataset.f, e.button);
+  else if (t.classList.contains('hslot') && curChest) slotClick(curChest, +t.dataset.h, e.button);
 });
 modeBtns.forEach((b) => b.addEventListener('click', () => setMode(!creative)));
 renderHotbar(); updateModeUI();
@@ -3306,8 +3493,8 @@ document.addEventListener('pointerlockchange', () => {
 });
 document.addEventListener('mousemove', (e) => {
   if (!playing || document.pointerLockElement !== canvas) return;
-  yaw -= e.movementX * 0.0022;
-  pitch = Math.max(-1.5, Math.min(1.5, pitch - e.movementY * 0.0022));
+  yaw -= e.movementX * 0.0022 * SENS.look;
+  pitch = Math.max(-1.5, Math.min(1.5, pitch - e.movementY * 0.0022 * SENS.look));
 });
 document.addEventListener('mousedown', (e) => {
   if (!playing) return;
@@ -3351,6 +3538,128 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; held = -1; });
 
+/* ---- settings: look speed, field of view, view distance, render scale (saved on this device) ---- */
+const SENS = { look: 1, fov: 75, dist: R, res: 1.5 };
+const SET_KEY = 'blockfield-settings';
+let setStored = false;
+try { const o = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (o) { setStored = true; for (const k in SENS) if (Number.isFinite(o[k])) SENS[k] = o[k]; } } catch (e) {}
+function applySettings() {
+  camera.fov = SENS.fov; camera.updateProjectionMatrix();
+  R = Math.round(SENS.dist); applyFog();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, SENS.res));
+  window.dispatchEvent(new Event('resize'));
+  try { localStorage.setItem(SET_KEY, JSON.stringify(SENS)); } catch (e) {}
+}
+if (setStored) applySettings();
+(function settingsUI() {
+  const panel = document.createElement('div');
+  panel.style.cssText = 'position:fixed;inset:0;z-index:100;display:none;background:rgba(0,0,0,.8);overflow:auto;padding:12px;box-sizing:border-box;color:#fff;font:15px sans-serif;';
+  const card = document.createElement('div');
+  card.style.cssText = 'max-width:460px;margin:0 auto;background:#222;border-radius:12px;padding:12px 16px;';
+  card.innerHTML = '<h2 style="margin:0 0 6px;font-size:18px">Settings</h2>';
+  const ctl = [];
+  [['look', 'Look speed', 0.4, 3, 0.1, 'x'], ['fov', 'Field of view', 50, 110, 1, ' deg'], ['dist', 'View distance', 2, 9, 1, ' chunks'], ['res', 'Render scale', 0.5, 2, 0.25, 'x']].forEach((r) => {
+    const row = document.createElement('label'); row.style.cssText = 'display:block;margin:6px 0;';
+    const val = document.createElement('span'), inp = document.createElement('input');
+    inp.type = 'range'; inp.min = r[2]; inp.max = r[3]; inp.step = r[4]; inp.style.cssText = 'width:100%;';
+    const show = () => { val.textContent = ': ' + (+inp.value) + r[5]; };
+    inp.addEventListener('input', show);
+    inp.addEventListener('change', () => { SENS[r[0]] = +inp.value; applySettings(); });
+    row.appendChild(document.createTextNode(r[1])); row.appendChild(val); row.appendChild(inp); card.appendChild(row);
+    ctl.push(() => { inp.value = SENS[r[0]]; show(); });
+  });
+  const done = document.createElement('button'); done.type = 'button'; done.textContent = 'Close'; done.style.cssText = 'padding:8px 18px;margin-top:6px;font-size:15px;';
+  done.addEventListener('click', () => { panel.style.display = 'none'; });
+  card.appendChild(done); panel.appendChild(card); document.body.appendChild(panel);
+  const sb = document.createElement('button'); sb.id = 'settingsbtn'; sb.className = 'ghost'; sb.type = 'button'; sb.textContent = 'Settings';
+  newBtn.parentNode.insertBefore(sb, newBtn.nextSibling);
+  sb.addEventListener('click', () => { SENS.dist = R; ctl.forEach((f) => f()); panel.style.display = 'block'; });
+})();
+/* ---- touch controls (phones and tablets; add ?touch=1 to the address to force them on) ---- */
+const TOUCH = /[?&]touch=1/.test(location.search) || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
+if (TOUCH) (function touchControls() {
+  document.body.classList.add('touch'); document.documentElement.classList.add('touch');
+  const mkEl = (cls, txt, par) => { const d = document.createElement('div'); d.className = cls; if (txt) d.textContent = txt; (par || document.body).appendChild(d); return d; };
+  const ui = mkEl('tui'), zL = mkEl('tzone tzl', '', ui), zR = mkEl('tzone tzr', '', ui);
+  const base = mkEl('tstick', '', ui), knob = mkEl('tknob', '', base);
+  const NP = { passive: false };
+  const find = (e, id) => { for (const t of e.changedTouches) if (t.identifier === id) return t; return null; };
+  const press = (el, down, up) => {
+    el.addEventListener('touchstart', (e) => { e.preventDefault(); el.classList.add('on'); down(); }, NP);
+    const end = (e) => { e.preventDefault(); el.classList.remove('on'); if (up) up(); };
+    el.addEventListener('touchend', end, NP); el.addEventListener('touchcancel', end, NP);
+  };
+  /* left thumb: a floating joystick */
+  let stickId = null, sx = 0, sy = 0;
+  const dirTo = (dx, dy) => {
+    const d = Math.hypot(dx, dy), k = d > 46 ? 46 / d : 1;
+    knob.style.transform = 'translate(' + (dx * k) + 'px,' + (dy * k) + 'px)';
+    keys.KeyW = dy < -14; keys.KeyS = dy > 14; keys.KeyA = dx < -14; keys.KeyD = dx > 14;
+  };
+  const stickOff = () => { stickId = null; base.style.display = 'none'; keys.KeyW = keys.KeyS = keys.KeyA = keys.KeyD = false; };
+  zL.addEventListener('touchstart', (e) => {
+    e.preventDefault(); if (stickId !== null) return;
+    const t = e.changedTouches[0]; stickId = t.identifier; sx = t.clientX; sy = t.clientY;
+    base.style.display = 'block'; base.style.left = (sx - 60) + 'px'; base.style.top = (sy - 60) + 'px'; dirTo(0, 0);
+  }, NP);
+  zL.addEventListener('touchmove', (e) => { e.preventDefault(); const t = find(e, stickId); if (t) dirTo(t.clientX - sx, t.clientY - sy); }, NP);
+  zL.addEventListener('touchend', (e) => { e.preventDefault(); if (find(e, stickId)) stickOff(); }, NP);
+  zL.addEventListener('touchcancel', stickOff, NP);
+  /* right thumb: drag to look, tap to place or use, hold to mine */
+  let lookId = null, lx = 0, ly = 0, moved = 0, t0 = 0, timer = 0, mining = false;
+  zR.addEventListener('touchstart', (e) => {
+    e.preventDefault(); if (lookId !== null) return;
+    const t = e.changedTouches[0]; lookId = t.identifier; lx = t.clientX; ly = t.clientY; moved = 0; t0 = performance.now(); mining = false;
+  }, NP);
+  zR.addEventListener('touchmove', (e) => {
+    e.preventDefault(); const t = find(e, lookId); if (!t) return;
+    const dx = t.clientX - lx, dy = t.clientY - ly; lx = t.clientX; ly = t.clientY; moved += Math.abs(dx) + Math.abs(dy);
+    yaw -= dx * 0.008 * SENS.look; pitch = Math.max(-1.5, Math.min(1.5, pitch - dy * 0.008 * SENS.look));
+  }, NP);
+  const lookEnd = (e) => {
+    e.preventDefault(); if (!find(e, lookId)) return;
+    clearTimeout(timer); lookId = null;
+    if (mining) held = -1; else if (moved < 14 && performance.now() - t0 < 380 && playing) act(2, true);
+    mining = false;
+  };
+  zR.addEventListener('touchend', lookEnd, NP); zR.addEventListener('touchcancel', lookEnd, NP);
+  /* buttons */
+  const jump = mkEl('tbtn big', 'Jump', ui); jump.style.right = 'calc(24px + env(safe-area-inset-right, 0px))'; jump.style.bottom = '90px';
+  press(jump, () => { keys.Space = true; }, () => { keys.Space = false; });
+  const use = mkEl('tbtn', 'Use', ui); use.style.right = 'calc(34px + env(safe-area-inset-right, 0px))'; use.style.bottom = '180px';
+  press(use, () => { if (playing) { act(2, true); held = 2; heldT = 0.25; } }, () => { held = -1; });
+  const brk = mkEl('tbtn big', 'Break', ui); brk.style.right = 'calc(112px + env(safe-area-inset-right, 0px))'; brk.style.bottom = '50px';
+  press(brk, () => { if (playing) { act(0, true); held = 0; heldT = 0.25; } }, () => { held = -1; });   /* mines blocks and attacks mobs, hold it to keep going */
+  const run = mkEl('tbtn', 'Run', ui); run.style.left = 'calc(20px + env(safe-area-inset-left, 0px))'; run.style.bottom = '24px';
+  let runOn = false; run.addEventListener('touchstart', (e) => { e.preventDefault(); runOn = !runOn; keys.ShiftLeft = runOn; run.classList.toggle('on', runOn); }, NP);
+  const top = mkEl('ttop', '', ui);
+  [['Inv', () => { if (playing) openInventory(2); }], ['Q', () => { if (playing) swapOff(); }], ['Fly', () => { if (playing) document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyF' })); }], ['II', () => setPlaying(false)]].forEach((b) => {
+    const el = mkEl('tbtn', b[0], top); el.addEventListener('touchstart', (e) => { e.preventDefault(); b[1](); }, NP);
+  });
+  /* inventory screens: close and half-stack buttons */
+  const closeB = mkEl('tbtn', 'Close'), halfB = mkEl('tbtn', 'Half');
+  closeB.style.top = halfB.style.top = 'calc(10px + env(safe-area-inset-top, 0px))'; closeB.style.right = 'calc(12px + env(safe-area-inset-right, 0px))'; halfB.style.right = '96px';
+  closeB.style.display = halfB.style.display = 'none';
+  let halfOn = false;
+  closeB.addEventListener('touchstart', (e) => { e.preventDefault(); closeInventory(true); }, NP);
+  halfB.addEventListener('touchstart', (e) => { e.preventDefault(); halfOn = !halfOn; halfB.classList.toggle('on', halfOn); }, NP);
+  invEl.addEventListener('mousedown', (e) => {
+    if (!halfOn || !e.isTrusted || e.button !== 0) return;
+    e.stopImmediatePropagation(); e.preventDefault(); halfOn = false; halfB.classList.remove('on');
+    e.target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 2, clientX: e.clientX, clientY: e.clientY }));
+  }, true);
+  /* tapping Play starts straight away (no mouse lock on phones) */
+  playBtn.addEventListener('click', (e) => {
+    e.stopImmediatePropagation(); if (!ready) return;
+    noLock = true; setPlaying(true);
+    showHint('Left thumb moves, right thumb looks. Tap to place, hold to mine.', 5000);
+  }, true);
+  setInterval(() => {
+    ui.classList.toggle('thide', !playing);
+    closeB.style.display = halfB.style.display = invOpen ? 'flex' : 'none';
+    if (!playing && runOn) { runOn = false; run.classList.remove('on'); }
+  }, 150);
+})();
 newBtn.addEventListener('click', () => {
   if (!window.confirm('Start a new world? Your current one will be erased.')) return;
   try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
@@ -3362,7 +3671,7 @@ function save() {
   settleFallers();
   if (dead) return;
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ seed: seed, edits: edits, p: [player.x, player.y, player.z], yaw: yaw, pitch: pitch, gen: GEN, time: worldTime, furnaces: furnacesJSON(), grow: growJSON(), slots: slots, creative: creative, vit: { health: vit.health, food: vit.food, sat: vit.sat } }));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ seed: seed, edits: edits, p: [player.x, player.y, player.z], yaw: yaw, pitch: pitch, gen: GEN, time: worldTime, bed: bedSpawn, chests: chestsJSON(), furnaces: furnacesJSON(), grow: growJSON(), slots: slots, creative: creative, vit: { health: vit.health, food: vit.food, sat: vit.sat } }));
   } catch (e) {}
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
@@ -4129,7 +4438,7 @@ function armGeo() {
 function rebuildHand(id) {
   while (handGroup.children.length) handGroup.remove(handGroup.children[0]);
   let mesh = null, tile = -1, cube = false;
-  if (id >= 100) tile = ITEM_INFO[id] ? ITEM_INFO[id].tile : -1;
+  if (!isBlk(id)) tile = ITEM_INFO[id] ? ITEM_INFO[id].tile : -1;
   else if (id > 0) { if (id === 80) tile = 126; else if (id === BUSH || (id >= 36 && id <= 40) || PASS[id] || FLATB[id]) tile = DEFS[id].f[0]; else cube = true; }
   if (cube) { mesh = new THREE.Mesh(cubeGeo(id), handTexMat); mesh.scale.setScalar(0.38); handKind = 'cube'; }
   else if (tile >= 0) { mesh = new THREE.Mesh(spriteGeo(tile), handMat); mesh.scale.set(-0.52, 0.52, 0.52); handKind = 'item'; }
