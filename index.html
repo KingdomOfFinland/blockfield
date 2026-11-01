@@ -298,8 +298,7 @@ html, body.touch { overscroll-behavior: none; }
   </div>
 </div>
 
-<script src="three.min.js"></script>
-<script>window.THREE||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>')</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function () {
 'use strict';
@@ -317,7 +316,7 @@ if (typeof THREE === 'undefined') {
 }
 
 /* ---------------------------------------------------------------- constants */
-const CS = 16, H = 64, NT = 199, TS = 16, EPS = 0.0008, LEAVES = 7;
+const CS = 16, H = 64, NT = 206, TS = 16, EPS = 0.0008, LEAVES = 7;
 const HOT = 10, INV = 30, TOTAL = HOT + INV, STACK = 64;
 const WATER = 19, LAVA = 20, OBSIDIAN = 21, SNOW = 22, ICE = 23, SEA = 20, LAVA_Y = 6, GEN = 3, CACTUS = 34, BUSH = 35;
 const isFluid = (id) => id === WATER || id === LAVA;
@@ -326,7 +325,7 @@ const LOGMAP = { 10: 6, 11: 6, 25: 24, 26: 24, 28: 27, 29: 27, 51: 50, 52: 50 };
 const LOGAXIS = { 6: [10, 11], 24: [25, 26], 27: [28, 29], 50: [51, 52] };                       /* upright log -> [along X, along Z] */
 const TORCHMAP = { 37: 36, 38: 36, 39: 36, 40: 36 };                               /* wall torches -> standing torch */
 const FURNMAP = { 42: 41, 43: 41, 44: 41, 45: 41, 46: 41, 47: 41, 48: 41 };        /* facings and lit furnaces -> furnace */
-const ONOFF = { 63: 62, 65: 64, 67: 66, 69: 68, 72: 71, 74: 73 };                           /* powered state -> resting state */
+const ONOFF = { 63: 62, 65: 64, 67: 66, 69: 68, 72: 71, 74: 73, 209: 208, 210: 208, 211: 208 };                           /* powered state -> resting state */
 const PASS = []; [61, 64, 65, 66, 67, 68, 69, 72, 73, 74].forEach((i) => { PASS[i] = 1; }); [84, 85, 86, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99].forEach((i) => { PASS[i] = 1; });   /* blocks you walk through */
 const FLATB = { 98: 1, 99: 1, 93: 1, 94: 1, 95: 1, 96: 1, 97: 1, 91: 1, 92: 1, 88: 1, 89: 1, 90: 1, 84: 1, 85: 1, 86: 1, 61: 1, 64: 1, 65: 1, 66: 1, 67: 1, 68: 1, 69: 1, 73: 1, 74: 1 };                    /* sit on the block below and fall off without it */
 const NETB = { 61: 1, 64: 1, 65: 1, 66: 1, 67: 1, 68: 1, 69: 1, 70: 1, 73: 1, 74: 1 };              /* changing these re-works the power network */
@@ -403,6 +402,10 @@ const DEFS = [
   NAMES[200 + i] = nm; DEFS[200 + i] = mk(182 + i, 182 + i, 182 + i); TRANSP[200 + i] = 1; PASS[200 + i] = 1; FLATB[200 + i] = 1;
 });
 NAMES[205] = 'Bed'; DEFS[205] = mk(187, 188, 5); NAMES[206] = 'Chest'; DEFS[206] = mk(189, 190, 5);   NAMES[207] = 'Wild Rice'; DEFS[207] = mk(198, 198, 198); TRANSP[207] = 1; PASS[207] = 1; FLATB[207] = 1;   /* 205 bed, 206 chest, 207 wild rice */
+/* doors: 208 lower closed, 209 upper closed, 210 lower open, 211 upper open (facing is kept in the block's data) */
+NAMES[208] = NAMES[209] = NAMES[210] = NAMES[211] = 'Door'; DEFS[208] = DEFS[210] = mk(199, 199, 199); DEFS[209] = DEFS[211] = mk(200, 200, 200);
+for (let i = 208; i <= 211; i++) TRANSP[i] = 1;
+PASS[210] = PASS[211] = 1;
 /* items: 100 to 103 are materials, 110 to 121 are tools (type * 4 + tier) */
 const TIERS = [
   { name: 'Wooden',  speed: 2, dur: 59,   mat: 5,   m: [186, 148, 95],  d: [128, 96, 56] },
@@ -448,11 +451,11 @@ function toolOf(st) {
   return { type: TOOL_TYPES[(k / 4) | 0], tier: k % 4 };
 }
 const toolMax = (id) => (id >= 155 && id <= 158) ? 750 : id === 159 ? 90 : id === 172 ? 120 : (id >= 146 && id <= 149) ? 32 : (id >= 136 && id <= 139) ? 190 : id === 133 ? 385 : TIERS[isSword(id) ? id - SWORD_BASE : (id - TOOL_BASE) % 4].dur;
-const stackMax = (id) => (isDur(id) || id === 106 || id === 107 || id === 186) ? 1 : (id === 105 ? 16 : STACK);
+const stackMax = (id) => (isDur(id) || id === 106 || id === 107 || id === 186 || id === 197) ? 1 : (id === 105 ? 16 : STACK);
 const isBlk = (id) => id < 100 || id >= 200;   /* blocks live at 0 to 99 and 200 up, items at 100 to 199 */
 const itemName = (id) => isBlk(id) ? NAMES[id] : ITEM_INFO[id].name;
 const itemTile = (id) => id === 80 ? 126 : isBlk(id) ? DEFS[id].f[0] : ITEM_INFO[id].tile;
-const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207];
+const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 208];
 const PALETTE = PLACEABLE.concat([100, 101, 102, 103, 104, 105, 106, 107, 108, 109]);
 for (let i = 0; i < 12; i++) PALETTE.push(TOOL_BASE + i);
 for (let i = 0; i < 4; i++) PALETTE.push(SWORD_BASE + i);
@@ -482,7 +485,7 @@ bi(32, 0.2, null, -1); bi(33, 0.2, null, -1); bi(34, 0.4, null, -1); bi(35, 0, n
 bi(36, 0, null, -1); bi(41, 3.5, 'pick', 0); bi(49, 0.6, 'shovel', -1);
 bi(50, 2, 'axe', -1); bi(51, 2, 'axe', -1); bi(52, 2, 'axe', -1); bi(53, 2, 'axe', -1); bi(54, 0.2, null, -1); bi(55, 0.6, 'shovel', -1); bi(56, 3, 'pick', 1); bi(57, 3, 'pick', 0); bi(58, 3, 'pick', 0); bi(59, 3, 'pick', 0); bi(60, 3, 'pick', 0);
 for (let i = 200; i <= 204; i++) bi(i, 0, null, -1);
-bi(205, 0.3, null, -1); bi(206, 2.5, 'axe', -1); bi(207, 0, null, -1);
+bi(205, 0.3, null, -1); bi(206, 2.5, 'axe', -1); bi(207, 0, null, -1); bi(208, 3, 'axe', -1);
 bi(61, 0, null, -1); bi(62, 0.5, null, -1); bi(64, 0.5, null, -1); bi(66, 0.5, null, -1); bi(68, 0.5, null, -1); bi(70, 3, 'pick', 0); bi(71, 3, 'pick', 0); bi(73, 0.3, null, -1); bi(75, 3, 'pick', 2); bi(76, 3, 'pick', 1); bi(77, 5, 'pick', 0); bi(80, 5, 'pick', 0); bi(78, 5, 'pick', 1); bi(79, 5, 'pick', 2); bi(81, 0.6, 'shovel', -1); bi(82, 3, 'pick', 2); bi(83, 5, 'pick', 2); bi(84, 0, null, -1); bi(85, 0, null, -1); bi(86, 0, null, -1); bi(87, 0.6, 'shovel', -1); bi(88, 0, null, -1); bi(89, 0, null, -1); bi(90, 0, null, -1); bi(91, 0, null, -1); bi(92, 0, null, -1); bi(93, 0, null, -1); bi(94, 0, null, -1); bi(95, 0, null, -1); bi(96, 0, null, -1); bi(97, 0, null, -1); bi(98, 0, null, -1); bi(99, 0, null, -1);
 const binfo = (id) => BINFO[canon(id)];
 /* what a block turns into when you mine it (no furnace yet, so iron ore gives ingots) */
@@ -529,7 +532,12 @@ shapeless([6], 5, 4);                  /* log -> 4 planks */
 shaped([[5], [5]], 100, 4);            /* 2 planks -> 4 sticks */
 shaped([[5, 5], [5, 5]], 17, 1);       /* 4 planks -> crafting table */
 shaped([[171, 171, 171], [5, 5, 5]], 205, 1);   /* bed: 3 feathers over 3 planks */
-shaped([[5, 5, 5], [5, 0, 5], [5, 5, 5]], 206, 1);   /* chest: a ring of 8 planks */
+shaped([[5, 5, 5], [5, 0, 5], [5, 5, 5]], 206, 1);
+shaped([[5, 5], [5, 5], [5, 5]], 208, 3);   /* door: 6 planks make 3 doors */
+shaped([[202, 202, 202]], 193, 3);   /* paper: 3 sugarcane in a row */
+shaped([[140, 140], [140, 140]], 195, 1);   /* fabric: 4 string */
+shapeless([193, 193, 193, 195], 196, 1);   /* book: 3 paper and a fabric */
+shapeless([171, 194, 196], 197, 1);   /* book and quill: a feather, an ink sac and a book */   /* chest: a ring of 8 planks */
 shaped([[0, 0, 100], [0, 100, 171], [100, 0, 171]], 186, 1);   /* fishing rod: sticks and feathers */
 shapeless([191, 185, 187], 192, 1); shapeless([191, 185, 189], 192, 1);   /* sushi: rice, dried kelp and raw fish or crab */
 shaped([[4, 4], [4, 4]], 12, 4);       /* 4 cobblestone -> 4 stone bricks */
@@ -954,7 +962,7 @@ try {
   statusEl.textContent = 'WebGL is not available in this browser.';
   return;
 }
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, (window.matchMedia && matchMedia('(pointer: coarse)').matches) ? 1 : 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
 
 /* ---- sword, meat and mob-food art (tiles 67 to 75) ---- */
@@ -1545,6 +1553,24 @@ scene.fog = new THREE.Fog(SKY, 40, 80);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 500);
 camera.rotation.order = 'YXZ';
 
+/* door tiles: 199 lower half (knob), 200 upper half (window) */
+for (let t = 199; t <= 200; t++) for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+  const v = ((x * 7 + y * 13) % 5) * 2, e = x < 2 || x > 13 || y < 1 || y > 14, w = t === 200 && x > 3 && x < 12 && y > 2 && y < 7, k = t === 199 && x === 12 && (y === 8 || y === 9), mid = y === 8;
+  px(t, x, y, k ? 230 : (w ? 170 : (e ? 104 : (mid ? 118 : 148) + v)), k ? 190 : (w ? 214 : (e ? 72 : (mid ? 84 : 106) + v)), k ? 70 : (w ? 228 : (e ? 38 : (mid ? 46 : 58) + v)));
+}
+/* paper (tile 201, item 193) and ink sac (tile 202, item 194) */
+ITEM_INFO[193] = { name: 'Paper', tile: 201 }; ITEM_INFO[194] = { name: 'Ink Sac', tile: 202 };
+for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+  if (x >= 3 && x <= 12 && y >= 2 && y <= 13) { const e = x === 3 || x === 12 || y === 2 || y === 13, ln = (y === 5 || y === 8 || y === 11) && x > 4 && x < 11; px(201, x, y, e ? 196 : (ln ? 170 : 240), e ? 190 : (ln ? 170 : 236), e ? 168 : (ln ? 160 : 222)); }
+  const r = Math.hypot(x - 7.5, y - 8.5); if (r < 5 + ((x * 3 + y) % 3) * 0.4) px(202, x, y, 28 + (r < 3 ? 0 : 12), 34 + (r < 3 ? 0 : 14), 58 + (r < 3 ? 0 : 20));
+}
+/* fabric (tile 203, item 195), book (204, item 196), book and quill (205, item 197) */
+ITEM_INFO[195] = { name: 'Fabric', tile: 203 }; ITEM_INFO[196] = { name: 'Book', tile: 204 }; ITEM_INFO[197] = { name: 'Book and Quill', tile: 205 };
+const paintBook = (t, cv, sp) => { for (let y = 2; y <= 13; y++) for (let x = 3; x <= 12; x++) { const spine = x <= 4, pg = x === 12 && y > 2 && y < 13; px(t, x, y, pg ? 236 : (spine ? sp[0] : cv[0]), pg ? 230 : (spine ? sp[1] : cv[1]), pg ? 210 : (spine ? sp[2] : cv[2])); } for (let y = 6; y <= 8; y++) for (let x = 7; x <= 9; x++) px(t, x, y, 214, 170, 60); };
+paintBook(204, [120, 70, 40], [80, 46, 26]); paintBook(205, [52, 66, 124], [34, 44, 86]);
+for (let i = 0; i < 7; i++) { px(205, 8 + i, 10 - i, 244, 244, 240); if (i > 0) px(205, 9 + i, 10 - i, 214, 214, 206); }
+px(205, 7, 11, 30, 30, 40);
+for (let y = 3; y <= 12; y++) for (let x = 2; x <= 13; x++) { const c = ((x >> 1) + (y >> 1)) % 2; px(203, x, y, c ? 226 : 206, c ? 222 : 200, c ? 206 : 182); }
 const tex = new THREE.CanvasTexture(atlas);
 tex.magFilter = THREE.NearestFilter;
 tex.minFilter = THREE.NearestFilter;
@@ -2114,7 +2140,7 @@ function setBlock(x, y, z, id, lvl) {
   const c = getChunk(cx, cz), idx = lx + (lz << 4) + (y << 8);
   const lv = EMIT_LV(id), oldId = c.data[idx], olv = EMIT_LV(oldId);
   c.data[idx] = id;
-  const fv = (id === WATER || id === LAVA || id === 61 || id === 73 || id === 74 || id === 80) ? (lvl || 0) : 0;
+  const fv = (id === WATER || id === LAVA || id === 61 || id === 73 || id === 74 || id === 80 || (id >= 208 && id <= 211)) ? (lvl || 0) : 0;
   c.fl[idx] = fv;
   dirty.add(c);
   if (id && y > c.maxY) c.maxY = y;
@@ -2230,7 +2256,7 @@ const appliedLT = { r: 1, g: 1, b: 1 };
 let relightQ = [];
 /* when the sun moves enough, recolor every loaded mesh a few at a time */
 function lightingStep() {
-  if (!relightQ.length && (Math.abs(LT.r - appliedLT.r) > 0.03 || Math.abs(LT.g - appliedLT.g) > 0.03 || Math.abs(LT.b - appliedLT.b) > 0.03)) {
+  if (!relightQ.length && (Math.abs(LT.r - appliedLT.r) > 0.045 || Math.abs(LT.g - appliedLT.g) > 0.045 || Math.abs(LT.b - appliedLT.b) > 0.045)) {
     appliedLT.r = LT.r; appliedLT.g = LT.g; appliedLT.b = LT.b;
     for (const c of chunks.values()) for (const m of c.meshes) if (m.userData.lt) relightQ.push(m);
   }
@@ -2375,6 +2401,13 @@ function meshChunk(c) {
       flat(x, y, z, 0.06, 0.06, 0.94, 0.94, y + 0.1, def.f[0], 0.95, true, getFl(x, y, z) & 3);
       continue;
     }
+    if (id >= 208 && id <= 211) {
+      /* a door is a thin panel on one edge of its block; opening swings it onto the next edge */
+      const S = 0.1875, df = getFl(x, y, z) & 3;
+      const r = id >= 210 ? [[0, 0, S, 1], [1 - S, 0, 1, 1], [0, 0, 1, S], [0, 1 - S, 1, 1]][df] : [[0, 0, 1, S], [0, 1 - S, 1, 1], [0, 0, S, 1], [1 - S, 0, 1, 1]][df];
+      box(x, y, z, r[0], 0, r[1], r[2], 1, r[3], def.f[0]);
+      continue;
+    }
     if (id === BUSH || id === 64 || id === 65 || (id >= 84 && id <= 86) || (id >= 88 && id <= 99) || (id >= 200 && id <= 204) || id === 207) {
       /* a plant (or a lever): two crossed vertical sheets, drawn from both sides */
       const bt = def.f[0], bu0 = bt / NT + EPS, bu1 = (bt + 1) / NT - EPS, bv = gm.vc;
@@ -2449,7 +2482,7 @@ function meshChunk(c) {
 }
 
 /* ---------------------------------------------------------------- streaming */
-let R = 5, queue = [], lastPcx = null, lastPcz = null, lastR = null, ready = false;
+let R = (window.matchMedia && matchMedia('(pointer: coarse)').matches) ? 4 : 5, queue = [], lastPcx = null, lastPcz = null, lastR = null, ready = false;
 function applyFog() {
   const far = R * CS - 4;
   scene.fog.far = far; scene.fog.near = far * 0.55;
@@ -2460,6 +2493,7 @@ function scan(pcx, pcz) {
   const r2 = (R + 0.5) * (R + 0.5);
   for (let dz = -R; dz <= R; dz++) for (let dx = -R; dx <= R; dx++) {
     const dd = dx * dx + dz * dz; if (dd > r2) continue;
+    if (Math.abs(pcx + dx) > 134217727 || Math.abs(pcz + dz) > 134217727) continue;   /* world border: no chunks past 2147483647 blocks */
     const c = chunks.get(key(pcx + dx, pcz + dz));
     if (!c || !c.built) queue.push({ cx: pcx + dx, cz: pcz + dz, d: dd });
   }
@@ -2907,8 +2941,8 @@ function giveDrop(id) {
 /* cacti and dead bushes fall apart when the block under them goes */
 function supportCheck(x, y, z, quiet) {
   let id = getBlock(x, y, z);
-  while (id === CACTUS || id === BUSH || FLATB[id]) {
-    setBlock(x, y, z, 0);
+  while (id === CACTUS || id === BUSH || FLATB[id] || id === 208 || id === 210) {
+    setBlock(x, y, z, 0); if (id === 208 || id === 210) setBlock(x, y + 1, z, 0);
     if (!creative && !quiet) giveDrop(id);
     y++; id = getBlock(x, y, z);
   }
@@ -2917,6 +2951,7 @@ function breakBlock(x, y, z) {
   const old = getBlock(x, y, z);
   if (!old || old === 18) return;
   setBlock(x, y, z, 0);
+  if (old >= 208 && old <= 211) setBlock(x, (old === 208 || old === 210) ? y + 1 : y - 1, z, 0);   /* a door goes in both halves */
   supportCheck(x, y + 1, z);
   torchSupport(x, y, z);
   if (old >= 41 && old <= 48) dropFurnace(x, y, z);
@@ -3021,6 +3056,11 @@ function useBucket(st) {
     if (!creative) { st.id = 105; invChanged(); }
   }
 }
+function toggleDoor(x, y, z) {
+  const id = getBlock(x, y, z), by = (id === 208 || id === 210) ? y : y - 1, f = getF(x, by, z) & 3, nb = getBlock(x, by, z) === 208 ? 210 : 208;
+  if (nb === 208 && (intersectsPlayer(x, by, z) || intersectsPlayer(x, by + 1, z))) return;   /* never shut a door on yourself */
+  setBlock(x, by, z, nb, f); setBlock(x, by + 1, z, nb + 1, f);
+}
 function act(btn, first) {
   { const hs = slots[sel]; if (!(btn === 2 && hs && (hs.id === 133 || FOOD[hs.id]))) swingT = 1; }   /* the hand swings */
   if (btn === 0 && targetMob) { attackMob(targetMob); return; }
@@ -3037,6 +3077,7 @@ function act(btn, first) {
     if (tid === 17 && !shiftDown) { openInventory(3); return; }
     if (tid === 206 && !shiftDown) { openInventory('c', target.x, target.y, target.z); return; }
     if (tid === 205 && !shiftDown) { if (first) sleepIn(target.x, target.y, target.z); return; }
+    if (tid >= 208 && tid <= 211 && !shiftDown) { if (first) toggleDoor(target.x, target.y, target.z); return; }
     if (tid >= 41 && tid <= 48 && !shiftDown) { openInventory('f', target.x, target.y, target.z); return; }
     if (!shiftDown && (tid === 64 || tid === 65)) { if (first) setBlock(target.x, target.y, target.z, tid === 64 ? 65 : 64); return; }   /* levers flip */
     if (!shiftDown && tid === 80) { if (first) repairAtAnvil(); return; }   /* the anvil mends what you are holding */
@@ -3046,6 +3087,7 @@ function act(btn, first) {
     }
     if (st && (st.id === 105 || st.id === 106 || st.id === 107)) { if (first) useBucket(st); return; }
     if (st && st.id === 186) { if (first) useRod(); return; }
+    if (st && st.id === 197) { if (first) openBook(st); return; }   /* a book and quill opens to write in */
     if (st && THROWN[st.id]) { if (first) throwItem(); return; }   /* snowballs and rocks are thrown, one per click */
     if (st && AGE_PREV[tid] && toolOf(st) && toolOf(st).type === 'axe') {   /* an axe scrapes weathering off, one stage back */
       if (first) {
@@ -3091,6 +3133,13 @@ function act(btn, first) {
       let rf = 0;
       if (id === 73) { const fx = -Math.sin(yaw), fz = -Math.cos(yaw); rf = Math.abs(fx) > Math.abs(fz) ? (fx > 0 ? 0 : 1) : (fz > 0 ? 2 : 3); }   /* repeaters point away from you */
       if (id === 80) rf = Math.abs(Math.sin(yaw)) > Math.abs(Math.cos(yaw)) ? 1 : 0;   /* an anvil's long side is across your view */
+      if (id === 208) {   /* a door stands on solid ground and needs two free blocks */
+        const dsup = getBlock(bx, by - 1, bz);
+        if (dsup === 0 || PASS[dsup] || isFluid(dsup) || by + 1 >= H || getBlock(bx, by + 1, bz) !== 0 || intersectsPlayer(bx, by + 1, bz)) return;
+        const dsx = Math.sin(yaw), dcz = Math.cos(yaw);
+        rf = Math.abs(dsx) > Math.abs(dcz) ? (dsx > 0 ? 2 : 3) : (dcz > 0 ? 0 : 1);
+        setBlock(bx, by + 1, bz, 209, rf);
+      }
       setBlock(bx, by, bz, id, rf);
       if (id >= 41 && id <= 44) getFurnace(bx, by, bz, true);
       if (!creative) { st.n--; if (st.n <= 0) slots[sel] = null; invChanged(); }
@@ -3123,6 +3172,7 @@ let cursor = null, invOpen = false, craftSize = 2, craft = [], craftResult = nul
       if (ok(s)) {
         const o = { id: s.id, n: s.n };
         if (isDur(s.id)) o.d = (Number.isInteger(s.d) && s.d > 0 && s.d <= toolMax(s.id)) ? s.d : toolMax(s.id);
+        if (typeof s.t === 'string') o.t = s.t.slice(0, 2000);   /* what is written in a book and quill */
         slots[i] = o;
       }
     }
@@ -3521,6 +3571,7 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (e.code === 'KeyE' && playing) { openInventory(2); return; }
+  if ((e.code === 'Slash' || e.code === 'Enter') && playing) { e.preventDefault(); openCmd(e.code === 'Slash' ? '/' : ''); return; }
   if (e.code === 'KeyM' && playing) { setMode(!creative); return; }
   if (e.code === 'KeyQ' && playing) { swapOff(); return; }
   if (e.code === 'Escape' && noLock && playing) { setPlaying(false); return; }
@@ -3539,7 +3590,8 @@ document.addEventListener('keyup', (e) => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; held = -1; });
 
 /* ---- settings: look speed, field of view, view distance, render scale (saved on this device) ---- */
-const SENS = { look: 1, fov: 75, dist: R, res: 1.5 };
+const PHONE = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+const SENS = { look: 1, fov: 75, dist: R, res: PHONE ? 1 : 1.5, cap: PHONE ? 30 : 60, diff: 0 };   /* cap = most frames per second (fewer frames, cooler phone) */
 const SET_KEY = 'blockfield-settings';
 let setStored = false;
 try { const o = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (o) { setStored = true; for (const k in SENS) if (Number.isFinite(o[k])) SENS[k] = o[k]; } } catch (e) {}
@@ -3558,7 +3610,7 @@ if (setStored) applySettings();
   card.style.cssText = 'max-width:460px;margin:0 auto;background:#222;border-radius:12px;padding:12px 16px;';
   card.innerHTML = '<h2 style="margin:0 0 6px;font-size:18px">Settings</h2>';
   const ctl = [];
-  [['look', 'Look speed', 0.4, 3, 0.1, 'x'], ['fov', 'Field of view', 50, 110, 1, ' deg'], ['dist', 'View distance', 2, 9, 1, ' chunks'], ['res', 'Render scale', 0.5, 2, 0.25, 'x']].forEach((r) => {
+  [['look', 'Look speed', 0.4, 3, 0.1, 'x'], ['fov', 'Field of view', 50, 110, 1, ' deg'], ['dist', 'View distance', 2, 9, 1, ' chunks'], ['res', 'Render scale', 0.5, 2, 0.25, 'x'], ['cap', 'Max FPS', 20, 120, 10, ' fps'], ['diff', 'Difficulty (0 normal, 1 hard)', 0, 1, 1, '']].forEach((r) => {
     const row = document.createElement('label'); row.style.cssText = 'display:block;margin:6px 0;';
     const val = document.createElement('span'), inp = document.createElement('input');
     inp.type = 'range'; inp.min = r[2]; inp.max = r[3]; inp.step = r[4]; inp.style.cssText = 'width:100%;';
@@ -3575,6 +3627,97 @@ if (setStored) applySettings();
   newBtn.parentNode.insertBefore(sb, newBtn.nextSibling);
   sb.addEventListener('click', () => { SENS.dist = R; ctl.forEach((f) => f()); panel.style.display = 'block'; });
 })();
+/* ---- book and quill: right-click it to write; the text stays with the book ---- */
+const bookBox = document.createElement('div'), bookTa = document.createElement('textarea'), bookBtn = document.createElement('button');
+bookBox.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:120;display:none;width:min(92vw,420px);background:#e9dcb8;border:4px solid #6b4a24;border-radius:8px;padding:10px;box-sizing:border-box;';
+bookTa.style.cssText = 'width:100%;height:42vh;box-sizing:border-box;background:#f6edd2;color:#2a1c0c;border:1px solid #b09a6a;font:15px serif;padding:8px;resize:none;';
+bookTa.maxLength = 2000; bookBtn.type = 'button'; bookBtn.textContent = 'Done'; bookBtn.style.cssText = 'margin-top:8px;padding:8px 18px;font-size:15px;';
+bookBox.appendChild(bookTa); bookBox.appendChild(bookBtn); document.body.appendChild(bookBox);
+let bookSt = null;
+function openBook(st) {
+  if (invOpen || !playing) return;
+  bookSt = st; invOpen = true; playing = false; held = -1;
+  for (const k in keys) keys[k] = false;
+  try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) {}
+  bookTa.value = st.t || ''; bookBox.style.display = 'block'; bookTa.focus();
+}
+function closeBook() {
+  if (!bookSt) return;
+  bookSt.t = bookTa.value.slice(0, 2000); bookSt = null; changed = true;
+  bookBox.style.display = 'none'; bookTa.blur(); invOpen = false;
+  if (noLock) { setPlaying(true); return; }
+  try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => setPlaying(false)); } catch (e) { setPlaying(false); }
+}
+bookBtn.addEventListener('click', closeBook);
+bookTa.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.code === 'Escape') { e.preventDefault(); closeBook(); } });
+/* ---- command line: press / (or Enter) while playing, or tap the / button on a phone ---- */
+let cmdOpen = false;
+const cmdBox = document.createElement('div'), cmdLog = document.createElement('div'), cmdIn = document.createElement('input');
+cmdBox.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:120;display:none;background:rgba(0,0,0,.65);color:#fff;font:14px monospace;padding:6px 8px;box-sizing:border-box;';
+cmdLog.style.cssText = 'max-height:30vh;overflow:auto;white-space:pre-wrap;margin-bottom:4px;';
+cmdIn.type = 'text'; cmdIn.autocomplete = 'off'; cmdIn.spellcheck = false; cmdIn.style.cssText = 'width:100%;box-sizing:border-box;background:#111;color:#fff;border:1px solid #555;font:14px monospace;padding:6px;';
+cmdBox.appendChild(cmdLog); cmdBox.appendChild(cmdIn); document.body.appendChild(cmdBox);
+const cmdSay = (t) => { cmdLog.textContent += (cmdLog.textContent ? '\n' : '') + t; cmdLog.scrollTop = 1e6; };
+function openCmd(pre) {
+  if (invOpen || cmdOpen || !playing) return;
+  cmdOpen = true; invOpen = true; playing = false; held = -1;
+  for (const k in keys) keys[k] = false;
+  try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) {}
+  cmdBox.style.display = 'block'; cmdIn.value = pre || ''; cmdIn.focus();
+}
+function closeCmd() {
+  if (!cmdOpen) return;
+  cmdOpen = false; invOpen = false; cmdBox.style.display = 'none'; cmdIn.blur();
+  if (noLock) { setPlaying(true); return; }
+  try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => setPlaying(false)); } catch (e) { setPlaying(false); }
+}
+function findItem(q) {
+  q = q.toLowerCase().replace(/ /g, '_'); if (/^\d+$/.test(q)) return +q;
+  let best = 0;
+  for (let id = 1; id <= 211; id++) {
+    if (!validItem(id)) continue;
+    let nm; try { nm = itemName(id); } catch (e) { continue; }
+    if (!nm) continue; nm = nm.toLowerCase().replace(/ /g, '_');
+    if (nm === q) return id; if (!best && nm.indexOf(q) >= 0) best = id;
+  }
+  return best;
+}
+const CMD_TIME = { day: 0.1, noon: 0.25, sunset: 0.45, night: 0.6, midnight: 0.75 };
+const CMDS = {
+  help: () => 'help, gamemode creative|survival, time day|noon|sunset|night|midnight, tp x y z, give <item> [amount], summon <mob>, kill [all], heal, difficulty normal|hard, seed',
+  gamemode: (a) => { const c = /^c/.test(a[1] || ''), s = /^s/.test(a[1] || ''); if (!c && !s) return 'Usage: gamemode creative|survival'; setMode(c); return 'Game mode: ' + (c ? 'creative' : 'survival'); },
+  time: (a) => { const v = CMD_TIME[a[a.length - 1]]; if (v === undefined) return 'Usage: time day|noon|sunset|night|midnight'; worldTime = Math.floor(worldTime / DAY_LEN) * DAY_LEN + DAY_LEN * v; return 'Time ' + clockStr(); },
+  tp: (a) => { const n = a.slice(1, 4).map(Number); if (n.length < 3 || n.some(isNaN)) return 'Usage: tp x y z'; player.x = n[0]; player.y = Math.max(1, Math.min(H - 2, n[1])); player.z = n[2]; player.vx = player.vy = player.vz = 0; fallPeak = player.y; return 'Teleported'; },
+  give: (a) => { if (!a[1]) return 'Usage: give <item name or number> [amount]'; const id = findItem(a[1]); if (!id) return 'Unknown item'; const n = Math.max(1, Math.min(stackMax(id), parseInt(a[2], 10) || 1)); if (!addItem(id, n)) return 'Inventory full'; invChanged(); return 'Gave ' + n + ' ' + itemName(id); },
+  summon: (a) => { if (!MOBS[a[1]]) return 'Mobs: ' + Object.keys(MOBS).join(', '); addMob(a[1], player.x - Math.sin(yaw) * 3, player.y + 1, player.z - Math.cos(yaw) * 3); return 'Summoned ' + a[1]; },
+  kill: (a) => { if (a[1] === 'all') { for (let i = mobs.length - 1; i >= 0; i--) removeMob(mobs[i]); return 'Removed all mobs'; } clearHostiles(); return 'Removed hostile mobs'; },
+  heal: () => { vit.health = 20; vit.food = 20; vit.sat = 5; return 'Healed'; },
+  difficulty: (a) => { const v = a[1] === 'hard' || a[1] === '1' ? 1 : (a[1] === 'normal' || a[1] === '0' ? 0 : -1); if (v < 0) return 'Usage: difficulty normal|hard'; SENS.diff = v; applySettings(); return 'Difficulty: ' + (v ? 'hard' : 'normal'); },
+  seed: () => 'Seed ' + seed
+};
+function runCmd(line) {
+  const a = line.trim().replace(/^\//, '').split(/\s+/); if (!a[0]) return '';
+  const f = CMDS[a[0].toLowerCase()]; if (!f) return 'Unknown command, try help';
+  try { return f(a) || 'Done'; } catch (e) { return 'Command failed'; }
+}
+cmdIn.addEventListener('keydown', (e) => {
+  e.stopPropagation();
+  if (e.code === 'Escape') { e.preventDefault(); closeCmd(); }
+  else if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+    e.preventDefault();
+    const line = cmdIn.value, r = runCmd(line);
+    if (/^\/?help\b/.test(line.trim())) { cmdSay(r); cmdIn.value = ''; return; }
+    closeCmd(); if (r) showHint(r, 2500);
+  }
+});
+if (PHONE) {
+  const cb = document.createElement('button'); cb.type = 'button'; cb.textContent = '/';
+  cb.style.cssText = 'position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:60;width:44px;height:36px;font:bold 18px monospace;background:rgba(0,0,0,.45);color:#fff;border:1px solid #888;border-radius:6px;display:none;';
+  cb.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); openCmd('/'); }, { passive: false });
+  cb.addEventListener('click', () => openCmd('/'));
+  document.body.appendChild(cb);
+  setInterval(() => { cb.style.display = playing ? '' : 'none'; }, 400);
+}
 /* ---- touch controls (phones and tablets; add ?touch=1 to the address to force them on) ---- */
 const TOUCH = /[?&]touch=1/.test(location.search) || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
 if (TOUCH) (function touchControls() {
@@ -3687,10 +3830,11 @@ const MOBS = {
   chicken: { name: 'Chicken', w: 0.5, h: 0.7, hp: 4, speed: 1.4, hostile: false, drop: [169, 1, 1], drop2: [171, 0, 2] },
   zombie: { name: 'Zombie', w: 0.6, h: 1.95, hp: 20, speed: 2.4, hostile: true,  drop: [130, 0, 2], dmg: 3 },
   skeleton: { name: 'Skeleton', w: 0.6, h: 1.95, hp: 20, speed: 2.0, hostile: true, ranged: true, drop: [131, 0, 2], drop2: [132, 0, 2], dmg: 3 },
-  spider: { name: 'Spider', w: 1.4, h: 0.9, hp: 16, speed: 3.0, hostile: true, climber: true, leaper: true, neutralDay: true, noBurn: true, reach: 1.5, drop: [140, 0, 2], dmg: 2 }
+  spider: { name: 'Spider', w: 1.4, h: 0.9, hp: 16, speed: 3.0, hostile: true, climber: true, leaper: true, neutralDay: true, noBurn: true, reach: 1.5, drop: [140, 0, 2], dmg: 2 },
+  squid: { name: 'Squid', w: 0.7, h: 0.9, hp: 10, speed: 1.2, hostile: false, aquatic: true, drop: [194, 1, 3] }
 };
 const mobs = [];
-let targetMob = null, attackCool = 0, hostileT = 1, passiveT = 0;
+let targetMob = null, attackCool = 0, hostileT = 1, passiveT = 0, squidT = 0;
 
 /* ray against a box: returns the distance to the box, or null if it is missed or farther than maxT */
 function rayBox(o, d, x0, y0, z0, x1, y1, z1, maxT) {
@@ -3795,6 +3939,14 @@ function buildMob(type, weapon) {
       lg.rotation.z = sd * -0.6;
       legs.push(pv);
     }
+  } else if (type === 'squid') {
+    const BODY = [52, 74, 112], BELLY = [96, 124, 160], EY = [14, 14, 18];
+    mpart(root, parts, [0.5, 0.55, 0.5], [0, 0.72, -0.1], BODY);
+    const head = mpart(root, parts, [0.46, 0.34, 0.4], [0, 0.5, 0.2], BELLY);
+    headG = head;
+    mpart(head, parts, [0.02, 0.1, 0.1], [-0.24, 0.02, 0.06], EY);
+    mpart(head, parts, [0.02, 0.1, 0.1], [0.24, 0.02, 0.06], EY);
+    for (let i = 0; i < 8; i++) { const a = i * 0.785; legs.push(mpart(root, parts, [0.08, 0.4, 0.08], [Math.cos(a) * 0.17, 0.45, Math.sin(a) * 0.17 + 0.05], BELLY, [0, -0.2, 0])); }
   } else {
     const SK = [92, 142, 66];
     for (const dx of [-0.13, 0.13]) legs.push(mpart(root, parts, [0.25, 0.75, 0.25], [dx, 0.75, 0], [48, 48, 128], [0, -0.375, 0]));
@@ -3963,13 +4115,13 @@ function updateArrows(dt) {
 function trySpawnHostile() {
   const night = daylight < 0.25;
   const surface = night && Math.random() < 0.6;
-  const ang = Math.random() * 6.283, dist = 20 + Math.random() * 12;
+  const ang = Math.random() * 6.283, dist = 24 + Math.random() * 40;
   const x = Math.floor(player.x + Math.cos(ang) * dist), z = Math.floor(player.z + Math.sin(ang) * dist);
   if (!chunkLoaded(x, z)) return;
   const gy = surface ? groundBelow(x, z, H - 1, 64) : groundBelow(x, z, Math.floor(player.y) + 4, 14);
   if (gy < 0 || Math.abs(gy - player.y) > 20) return;
   if (!night && daylit(x, gy + 1, z)) return;
-  if (Math.hypot(x + 0.5 - player.x, gy + 1 - player.y, z + 0.5 - player.z) < 12) return;
+  if (Math.hypot(x + 0.5 - player.x, gy + 1 - player.y, z + 0.5 - player.z) < 24) return;
   if (lightNear(x, gy + 1, z)) return;
   const r0 = Math.random();
   const type = r0 < (surface ? 0.25 : 0.3) ? 'spider' : (r0 < (surface ? 0.5 : 0.6) ? 'skeleton' : 'zombie');
@@ -3978,8 +4130,18 @@ function trySpawnHostile() {
   if (type === 'zombie' && Math.random() < 0.15) { const r = Math.random(); weapon = r < 0.45 ? 0 : (r < 0.75 ? 1 : (r < 0.95 ? 2 : 3)); }
   addMob(type, x + 0.5, gy + 1, z + 0.5, weapon);
 }
+function trySpawnSquid() {
+  const ang = Math.random() * 6.283, dist = 24 + Math.random() * 40;
+  const x = Math.floor(player.x + Math.cos(ang) * dist), z = Math.floor(player.z + Math.sin(ang) * dist);
+  if (!chunkLoaded(x, z)) return;
+  for (let y = SEA + 8; y > 4; y--) {   /* the first water from the top, if it is at least 3 deep */
+    if (getBlock(x, y, z) !== WATER) continue;
+    if (getBlock(x, y - 1, z) === WATER && getBlock(x, y - 2, z) === WATER && getBlock(x, y - 3, z) === WATER && !mobHits(MOBS.squid, x + 0.5, y - 2, z + 0.5)) addMob('squid', x + 0.5, y - 2, z + 0.5);
+    return;
+  }
+}
 function trySpawnPassive() {
-  const ang = Math.random() * 6.283, dist = 20 + Math.random() * 16;
+  const ang = Math.random() * 6.283, dist = 24 + Math.random() * 40;
   const x = Math.floor(player.x + Math.cos(ang) * dist), z = Math.floor(player.z + Math.sin(ang) * dist);
   if (!chunkLoaded(x, z)) return;
   const gy = groundBelow(x, z, H - 1, 64);
@@ -4083,6 +4245,34 @@ function bowStep(dt) {
   }
 }
 /* returns true when the mob has died */
+/* path finding: a breadth-first search over walkable cells (step up 1, drop up to 2); returns a unit heading toward the next cell */
+function pathStep(m, tx, ty, tz, dt) {
+  m.pathT = (m.pathT || 0) - dt;
+  if (m.pathT > 0 && m.pathDir !== undefined) return m.pathDir;
+  m.pathT = 0.4; m.pathDir = null; m.doorAt = null;
+  const brk = SENS.diff >= 1 && m.type === 'zombie';   /* on hard, zombies break doors down */
+  const fr = (x, y, z) => !mobSolid(x, y, z) || (brk && (getBlock(x, y, z) === 208 || getBlock(x, y, z) === 209));
+  const sx = Math.floor(m.x), sy = Math.floor(m.y + 0.1), sz = Math.floor(m.z), gx = Math.floor(tx), gz = Math.floor(tz), gy = Math.floor(ty);
+  const K = (x, y, z) => ((x + 4096) * 8192 + (z + 4096)) * 64 + y;
+  const seen = new Set([K(sx, sy, sz)]), q = [[sx, sy, sz, -1]], D = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (let i = 0; i < q.length && i < 500; i++) {
+    const n = q[i];
+    if (Math.abs(n[0] - gx) <= 1 && Math.abs(n[2] - gz) <= 1 && Math.abs(n[1] - gy) <= 2) {
+      if (i === 0) return null;
+      let j = i; while (q[j][3] > 0) j = q[j][3];
+      const s = q[j], dx = s[0] + 0.5 - m.x, dz = s[2] + 0.5 - m.z, L = Math.hypot(dx, dz) || 1;
+      for (let k = 0; k < 2; k++) { const id = getBlock(s[0], s[1] + k, s[2]); if (id === 208 || id === 209) m.doorAt = [s[0], s[1] + k, s[2]]; }
+      return (m.pathDir = [dx / L, dz / L]);
+    }
+    for (const d of D) for (const dy of [0, 1, -1, -2]) {
+      const nx = n[0] + d[0], ny = n[1] + dy, nz = n[2] + d[1];
+      if (ny < 1 || ny >= H - 3 || seen.has(K(nx, ny, nz))) continue;
+      if (!fr(nx, ny, nz) || !fr(nx, ny + 1, nz) || !mobSolid(nx, ny - 1, nz) || (dy === 1 && !fr(n[0], n[1] + 2, n[2]))) continue;
+      seen.add(K(nx, ny, nz)); q.push([nx, ny, nz, i]); break;
+    }
+  }
+  return null;
+}
 function updateMob(m, dt) {
   if (!chunkLoaded(m.x, m.z)) return false;
   const def = m.def, hostile = def.hostile;
@@ -4101,11 +4291,14 @@ function updateMob(m, dt) {
   if (m.hp <= 0 || m.y < -10) return true;
 
   let wantX = 0, wantZ = 0, sp = 0, chasing = false;
+  /* hostile mobs only notice you inside their sight range (16 blocks, 12 while you crouch) with a clear line, or when hurt, then hunt your last known spot */
+  m.seeT = (m.seeT || 0) - dt;
+  if (hostile && !dead && Math.abs(dyp) < 14 && !(def.neutralDay && daylight > 0.45 && !m.angry) && (m.angry || m.hurtT > 0 || (dh < ((keys.ShiftLeft || keys.ShiftRight) ? 12 : 16) && (dh < 4 || clearShot(m))))) { m.seeT = 6; m.tx = player.x; m.ty = player.y; m.tz = player.z; }
   if (m.kb > 0) {
     m.kb -= dt;
     const f = Math.exp(-dt * 3); m.vx *= f; m.vz *= f;
   } else {
-    if (hostile && !dead && dh < 28 && Math.abs(dyp) < 14 && !(def.neutralDay && daylight > 0.45 && !m.angry)) {
+    if (hostile && !dead && m.seeT > 0 && !(def.neutralDay && daylight > 0.45 && !m.angry)) {
       chasing = true;
       if (def.ranged) {
         /* skeletons keep their distance: close in when far, back off when near, sidestep in between */
@@ -4115,7 +4308,20 @@ function updateMob(m, dt) {
         m.atk -= dt;
         if (dh < 18 && m.atk <= 0 && clearShot(m)) { m.atk = 1.8 + Math.random() * 0.8; shootArrow(m); }
       } else {
-        if (dh > (def.reach ? def.reach - 0.3 : 0.85)) { wantX = dxp / dh; wantZ = dzp / dh; sp = def.speed; }
+        const gx = m.tx - m.x, gz = m.tz - m.z, gd = Math.hypot(gx, gz) || 1;
+        if (gd > (def.reach ? def.reach - 0.3 : 0.85)) {
+          const pd = def.climber ? null : pathStep(m, m.tx, m.ty, m.tz, dt);
+          if (pd) { wantX = pd[0]; wantZ = pd[1]; } else { wantX = gx / gd; wantZ = gz / gd; }
+          sp = def.speed;
+        }
+        if (m.doorAt && SENS.diff >= 1 && Math.hypot(m.x - m.doorAt[0] - 0.5, m.z - m.doorAt[2] - 0.5) < 1.7) {   /* a zombie batters a door for a few seconds, then it is gone */
+          m.doorT = (m.doorT || 0) + dt;
+          if (m.doorT >= 3) {
+            m.doorT = 0; const id = getBlock(m.doorAt[0], m.doorAt[1], m.doorAt[2]), by = id === 208 ? m.doorAt[1] : m.doorAt[1] - 1;
+            if (id === 208 || id === 209) { setBlock(m.doorAt[0], by, m.doorAt[2], 0); setBlock(m.doorAt[0], by + 1, m.doorAt[2], 0); }
+            m.doorAt = null; m.pathT = 0;
+          }
+        } else m.doorT = 0;
         if (def.leaper && m.onGround && dh > 2.2 && dh < 5.5 && m.leapT <= 0 && Math.abs(dyp) < 2) {   /* spiders pounce */
           m.leapT = 2.5; m.vx = dxp / dh * 7; m.vz = dzp / dh * 7; m.vy = 6.5; m.onGround = false; m.kb = 0.5;
         }
@@ -4131,9 +4337,21 @@ function updateMob(m, dt) {
       }
     } else {
       m.wanderT -= dt;
+      if (m.hx === undefined) { m.hx = m.x; m.hz = m.z; m.wa = m.yaw; }
       if (m.wanderT <= 0) {
-        m.wanderT = 2 + Math.random() * 4;
-        if (Math.random() < 0.45) { m.wx = 0; m.wz = 0; } else { const a = Math.random() * 6.283; m.wx = Math.cos(a); m.wz = Math.sin(a); }
+        if (m.wx || m.wz) { m.wx = 0; m.wz = 0; m.wanderT = 1.5 + Math.random() * 4; }   /* stop, stand and look around */
+        else {   /* then stroll on, bending the old heading a little, and drift back if it strayed far from home */
+          m.wa = Math.hypot(m.hx - m.x, m.hz - m.z) > 14 ? Math.atan2(m.hz - m.z, m.hx - m.x) : m.wa + (Math.random() - 0.5) * 2.4;
+          m.wx = Math.cos(m.wa); m.wz = Math.sin(m.wa); m.wanderT = 2 + Math.random() * 4; m.wy = (Math.random() - 0.5) * 1.6;
+        }
+      }
+      if (def.aquatic && (m.wx || m.wz)) {   /* squids stay in the water */
+        if (getBlock(Math.floor(m.x + m.wx * 0.9), Math.floor(m.y + 0.4), Math.floor(m.z + m.wz * 0.9)) !== WATER) { m.wa += Math.PI * (0.6 + Math.random() * 0.8); m.wx = Math.cos(m.wa); m.wz = Math.sin(m.wa); }
+      } else if ((m.wx || m.wz) && m.onGround) {   /* turn away from ledges, lava and deep water */
+        const ax = Math.floor(m.x + m.wx * 0.9), az = Math.floor(m.z + m.wz * 0.9), ay = Math.floor(m.y);
+        let safe = false;
+        for (let d = 0; d <= 2; d++) { const b = getBlock(ax, ay - d - 1, az); if (b === LAVA || b === WATER) break; if (mobSolid(ax, ay - d - 1, az)) { safe = true; break; } }
+        if (!safe) { m.wa += Math.PI * (0.6 + Math.random() * 0.8); m.wx = Math.cos(m.wa); m.wz = Math.sin(m.wa); }
       }
       wantX = m.wx; wantZ = m.wz; sp = def.speed * 0.6;
     }
@@ -4147,17 +4365,21 @@ function updateMob(m, dt) {
   /* turn to face the way it is moving */
   const spd = Math.hypot(m.vx, m.vz);
   if (spd > 0.15 || chasing) {
-    let diff = (chasing ? Math.atan2(dxp, dzp) : Math.atan2(m.vx, m.vz)) - m.yaw;
+    let diff = (chasing ? Math.atan2(m.tx - m.x, m.tz - m.z) : Math.atan2(m.vx, m.vz)) - m.yaw;
     while (diff > Math.PI) diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
     m.yaw += diff * Math.min(1, dt * 10);
   }
-  if (wet) { m.vy += 14 * dt; m.vy = Math.min(m.vy, 2.2) * Math.exp(-dt * 2); }
+  if (def.aquatic && wet) {   /* squids swim: they drift up and down and stay under the surface */
+    if (getBlock(bx, Math.floor(m.y + def.h + 0.3), bz) !== WATER && (m.wy || 0) > 0) m.wy = -0.4;
+    m.vy += ((m.wy || 0) - m.vy) * Math.min(1, dt * 3);
+  } else if (wet) { m.vy += 14 * dt; m.vy = Math.min(m.vy, 2.2) * Math.exp(-dt * 2); }
   else m.vy = Math.max(-40, m.vy - 28 * dt);
   const hx = mobMove(m, 'x', m.vx * dt); if (hx) m.vx = 0;
   const hz = mobMove(m, 'z', m.vz * dt); if (hz) m.vz = 0;
-  if ((hx || hz) && (m.onGround || wet) && (wantX || wantZ) && !def.climber) { m.vy = wet ? 5 : 8.4; m.onGround = false; }   /* hop over one-block steps */
+  if ((hx || hz) && (m.onGround || wet) && (wantX || wantZ) && !def.climber && !def.aquatic) { m.vy = wet ? 5 : 8.4; m.onGround = false; }   /* hop over one-block steps */
   if (def.climber && (hx || hz) && (wantX || wantZ)) { m.vy = 3.2; m.onGround = false; }   /* spiders walk straight up walls */
+  if (def.aquatic && (hx || hz)) { m.wa = (m.wa || 0) + 2; m.wx = Math.cos(m.wa); m.wz = Math.sin(m.wa); }
   const hy = mobMove(m, 'y', m.vy * dt);
   if (hy) { m.onGround = m.vy < 0; m.vy = 0; } else m.onGround = false;
   /* mobs are solid to each other: overlapping ones are pushed apart (through mobMove, so never into walls) */
@@ -4183,7 +4405,7 @@ function updateMob(m, dt) {
   m.group.position.set(m.x, m.y, m.z); m.group.rotation.y = m.yaw;
   /* the head turns on its own to follow you when you are close, and drifts about otherwise */
   let ty = 0, tp = 0;
-  if (dh < 14 && !dead) {
+  if (dh < 14 && !dead && (!hostile || m.seeT > 0)) {
     let rel = Math.atan2(dxp, dzp) - m.yaw;
     while (rel > Math.PI) rel -= Math.PI * 2;
     while (rel < -Math.PI) rel += Math.PI * 2;
@@ -4205,7 +4427,7 @@ function updateMob(m, dt) {
 function mobStep(dt) {
   for (let i = mobs.length - 1; i >= 0; i--) {
     const m = mobs[i], d = Math.hypot(m.x - player.x, m.z - player.z);
-    if (m.def.hostile ? (d > 36 || (d > 24 && daylight > 0.4 && m.sky)) : d > 100) { removeMob(m); continue; }
+    if (m.def.hostile ? (d > 72 || (d > 24 && daylight > 0.4 && m.sky)) : d > 100) { removeMob(m); continue; }
     if (updateMob(m, dt)) removeMob(m);
   }
   updateArrows(dt);
@@ -4214,8 +4436,10 @@ function mobStep(dt) {
     hostileT = 12;
     { let n = 0; for (const m of mobs) if (m.def.hostile) n++; if (n < 3) trySpawnHostile(); }
   }
+  squidT -= dt;
+  if (squidT <= 0) { squidT = 6; let n = 0; for (const m of mobs) if (m.def.aquatic) n++; if (n < 3) trySpawnSquid(); }
   if (passiveT <= 0) {
-    let n = 0; for (const m of mobs) if (!m.def.hostile) n++;
+    let n = 0; for (const m of mobs) if (!m.def.hostile && !m.def.aquatic) n++;
     passiveT = n < 3 ? 4 : 30;
     if (n < 5) trySpawnPassive();
   }
@@ -4580,6 +4804,7 @@ function repairAtAnvil() {
 let last = performance.now(), fpsN = 0, fpsT = 0, saveT = 0, fps = 0;
 function frame(now) {
   requestAnimationFrame(frame);
+  if (now - last < 1000 / ((playing || invOpen) ? SENS.cap : 10) - 2) return;   /* frame cap; menus and pause only need a few frames a second */
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
 
   if (playing) {
@@ -4587,6 +4812,10 @@ function frame(now) {
     if (keys.ArrowUp) pitch = Math.min(1.5, pitch + 1.8 * dt);
     if (keys.ArrowDown) pitch = Math.max(-1.5, pitch - 1.8 * dt);
     updatePlayer(dt);
+    if (Math.abs(player.x) > 2147483646 || Math.abs(player.z) > 2147483646) {   /* world border at the 32-bit limit */
+      player.x = Math.max(-2147483646, Math.min(2147483646, player.x)); player.z = Math.max(-2147483646, Math.min(2147483646, player.z));
+      player.vx = player.vz = 0; showHint('World border', 800);
+    }
     if (!creative) vitalsStep(dt);
     eatStep(dt);
     envStep(dt);
