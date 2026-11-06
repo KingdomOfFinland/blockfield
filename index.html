@@ -1987,7 +1987,7 @@ function genChunk(cx, cz) {
   if (wid === 'o') {
     const tx = 8, tz = 8, wx = cx * CS + tx, wz = cz * CS + tz;
     const b = bio[tx + tz * 16], h = hts[tx + tz * 16];
-    const chance = b === 1 ? 0.075 : b === 0 ? 0.009 : b === 2 ? 0.0015 : 0;
+    const chance = b === 1 ? 0.225 : b === 0 ? 0.027 : b === 2 ? 0.0045 : 0;
     let clear = chance > 0 && hash2(wx + 701, wz + 811) < chance && h >= SEA + 2 && h <= 38 && h + 4 < H;
     const groundId = b === 2 ? 8 : 1;
     /* keep the whole footprint in one flat, open biome so chunk edges never split a tent */
