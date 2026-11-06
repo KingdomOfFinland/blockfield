@@ -347,6 +347,7 @@ const TRANSP = [0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0,
   1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1,
   1, 1, 0, 0, 0, 0, 0, 1];
 TRANSP[84] = TRANSP[85] = TRANSP[86] = TRANSP[88] = TRANSP[89] = TRANSP[90] = TRANSP[91] = TRANSP[92] = TRANSP[93] = TRANSP[94] = TRANSP[95] = TRANSP[96] = TRANSP[97] = TRANSP[98] = TRANSP[99] = 1;   /* the vegetable plants let light through */
+TRANSP[232] = 1; /* fences have gaps, so render neighbouring block faces behind them */
 /* f = tile for each face: +x, -x, +y, -y, +z, -z */
 const mk = (top, side, bottom) => ({ f: [side, side, top, bottom, side, side] });
 const DEFS = [
