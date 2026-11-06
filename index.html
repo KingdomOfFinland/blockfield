@@ -1987,8 +1987,8 @@ function genChunk(cx, cz) {
   /* abandoned houses: one deterministic candidate per chunk, 1 in 99 chance, any Overworld biome */
   if (wid === 'o') {
     const hx = 8, hz = 8, wx = cx * CS + hx, wz = cz * CS + hz;
-    const h = hts[hx + hz * 16];
-    const appears = hash2(wx + 1907, wz + 2909) < (1 / 99) && h >= SEA + 2 && h <= 38 && h + 5 < H;
+    const h = Math.max(SEA + 1, hts[hx + hz * 16]);
+    const appears = hash2(wx + 1907, wz + 2909) < (1 / 99) && h + 5 < H;
     if (appears) {
       const floorY = h + 1;
       /* compact abandoned timber house; intentionally terrain-tolerant */
@@ -2029,9 +2029,9 @@ function genChunk(cx, cz) {
   /* abandoned tents: one deterministic candidate per chunk, strongly biased toward forests */
   if (wid === 'o') {
     const tx = 8, tz = 8, wx = cx * CS + tx, wz = cz * CS + tz;
-    const b = bio[tx + tz * 16], h = hts[tx + tz * 16];
+    const b = bio[tx + tz * 16], h = Math.max(SEA + 1, hts[tx + tz * 16]);
     const chance = b === 1 ? 0.03 : b === 0 ? 0.0036 : b === 2 ? 0.0006 : 0;
-    const clear = chance > 0 && hash2(wx + 701, wz + 811) < chance && h >= SEA + 2 && h <= 38 && h + 4 < H;
+    const clear = chance > 0 && hash2(wx + 701, wz + 811) < chance && h + 4 < H;
     /* terrain and nearby blocks do not restrict placement; the tent is anchored to the centre column */
     if (clear) {
       /* four fence supports, with a stepped wool canopy */
