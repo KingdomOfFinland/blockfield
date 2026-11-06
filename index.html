@@ -3830,7 +3830,7 @@ function findItem(q) {
 }
 const CMD_TIME = { day: 0.1, noon: 0.25, sunset: 0.45, night: 0.6, midnight: 0.75 };
 const CMDS = {
-  help: () => 'help, gamemode creative|survival, time day|noon|sunset|night|midnight, tp x y z, give <item> [amount], summon <mob>, kill [all], heal, difficulty normal|hard, seed',
+  help: () => 'help, gamemode creative|survival, time day|noon|sunset|night|midnight, tp x y z, locate [tent], give <item> [amount], summon <mob>, kill [all], heal, difficulty normal|hard, seed',
   gamemode: (a) => { const c = /^c/.test(a[1] || ''), s = /^s/.test(a[1] || ''); if (!c && !s) return 'Usage: gamemode creative|survival'; setMode(c); return 'Game mode: ' + (c ? 'creative' : 'survival'); },
   time: (a) => { const v = CMD_TIME[a[a.length - 1]]; if (v === undefined) return 'Usage: time day|noon|sunset|night|midnight'; worldTime = Math.floor(worldTime / DAY_LEN) * DAY_LEN + DAY_LEN * v; return 'Time ' + clockStr(); },
   tp: (a) => { const n = a.slice(1, 4).map(Number); if (n.length < 3 || n.some(isNaN)) return 'Usage: tp x y z'; player.x = n[0]; player.y = Math.max(1, Math.min(H - 2, n[1])); player.z = n[2]; player.vx = player.vy = player.vz = 0; fallPeak = player.y; return 'Teleported'; },
@@ -3839,6 +3839,31 @@ const CMDS = {
   kill: (a) => { if (a[1] === 'all') { for (let i = mobs.length - 1; i >= 0; i--) removeMob(mobs[i]); return 'Removed all mobs'; } clearHostiles(); return 'Removed hostile mobs'; },
   heal: () => { vit.health = 20; vit.food = 20; vit.sat = 5; return 'Healed'; },
   difficulty: (a) => { const v = a[1] === 'hard' || a[1] === '1' ? 1 : (a[1] === 'normal' || a[1] === '0' ? 0 : -1); if (v < 0) return 'Usage: difficulty normal|hard'; SENS.diff = v; applySettings(); return 'Difficulty: ' + (v ? 'hard' : 'normal'); },
+  locate: (a) => {
+    const what = (a[1] || 'tent').toLowerCase();
+    if (what !== 'tent' && what !== 'tents') return 'Usage: locate [tent]';
+    if (wid !== 'o') return 'Locate currently works in the Overworld';
+    const pcx = Math.floor(player.x / CS), pcz = Math.floor(player.z / CS);
+    const maxRing = 12;
+    let best = null, bestD = Infinity;
+    for (let ring = 0; ring <= maxRing; ring++) {
+      for (let dz = -ring; dz <= ring; dz++) for (let dx = -ring; dx <= ring; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== ring) continue;
+        const cx = pcx + dx, cz = pcz + dz, ck = key(cx, cz);
+        const c = chunks.get(ck) || genChunk(cx, cz);
+        /* tents currently place their chest at local x=8, z=11 */
+        for (let y = 1; y < H; y++) {
+          if (c.data[8 + (11 << 4) + (y << 8)] !== 206) continue;
+          const x = cx * CS + 8, z = cz * CS + 11;
+          const d = Math.hypot(x + 0.5 - player.x, z + 0.5 - player.z);
+          if (d < bestD) { bestD = d; best = { x: x, y: y, z: z }; }
+          break;
+        }
+      }
+      if (best) return 'Nearest abandoned tent: ' + best.x + ' ' + best.y + ' ' + best.z + ' (' + Math.round(bestD) + ' blocks away)';
+    }
+    return 'No abandoned tent found within ' + (maxRing * CS) + ' blocks';
+  },
   seed: () => 'Seed ' + seed
 };
 function runCmd(line) {
