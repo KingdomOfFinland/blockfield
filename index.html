@@ -1988,14 +1988,8 @@ function genChunk(cx, cz) {
     const tx = 8, tz = 8, wx = cx * CS + tx, wz = cz * CS + tz;
     const b = bio[tx + tz * 16], h = hts[tx + tz * 16];
     const chance = b === 1 ? 0.225 : b === 0 ? 0.027 : b === 2 ? 0.0045 : 0;
-    let clear = chance > 0 && hash2(wx + 701, wz + 811) < chance && h >= SEA + 2 && h <= 38 && h + 4 < H;
-    const groundId = b === 2 ? 8 : 1;
-    /* keep the whole footprint in one flat, open biome so chunk edges never split a tent */
-    for (let z = 5; z <= 11 && clear; z++) for (let x = 6; x <= 10 && clear; x++) {
-      const ci = x + z * 16, gh = hts[ci];
-      if (bio[ci] !== b || gh !== h || data[x + (z << 4) + (gh << 8)] !== groundId) { clear = false; break; }
-      for (let y = gh + 1; y <= h + 4; y++) if (data[x + (z << 4) + (y << 8)] !== 0) { clear = false; break; }
-    }
+    const clear = chance > 0 && hash2(wx + 701, wz + 811) < chance && h >= SEA + 2 && h <= 38 && h + 4 < H;
+    /* terrain and nearby blocks do not restrict placement; the tent is anchored to the centre column */
     if (clear) {
       /* four fence supports, with a stepped wool canopy */
       for (const p of [[6, 6], [8, 6], [10, 6], [6, 8], [10, 8], [6, 10], [8, 10], [10, 10]]) data[p[0] + (p[1] << 4) + ((h + 1) << 8)] = 232;
