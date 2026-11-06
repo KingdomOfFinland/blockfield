@@ -316,7 +316,7 @@ if (typeof THREE === 'undefined') {
 }
 
 /* ---------------------------------------------------------------- constants */
-const CS = 16, H = 64, NT = 226, TS = 16, EPS = 0.0008, LEAVES = 7;
+const CS = 16, H = 64, NT = 228, TS = 16, EPS = 0.0008, LEAVES = 7;
 const HOT = 10, INV = 30, TOTAL = HOT + INV, STACK = 64;
 const WATER = 19, LAVA = 20, OBSIDIAN = 21, SNOW = 22, ICE = 23, SEA = 20, LAVA_Y = 6, GEN = 3, CACTUS = 34, BUSH = 35;
 const isFluid = (id) => id === WATER || id === LAVA;
@@ -409,6 +409,9 @@ PASS[210] = PASS[211] = 1;
 /* portals and the Nether: 212 portal, 213 netherrack, 214 glowstone */
 NAMES[212] = 'Portal'; DEFS[212] = mk(206, 206, 206); TRANSP[212] = 1; PASS[212] = 1;
 NAMES[213] = 'Netherrack'; DEFS[213] = mk(207, 207, 207); NAMES[214] = 'Glowstone'; DEFS[214] = mk(208, 208, 208);
+/* 231 wool, 232 wooden fence (215–230 are reserved for armor items) */
+NAMES[231] = 'Wool'; DEFS[231] = mk(226, 226, 226);
+NAMES[232] = 'Fence'; DEFS[232] = mk(227, 227, 227);
 /* items: 100 to 103 are materials, 110 to 121 are tools (type * 4 + tier) */
 const TIERS = [
   { name: 'Wooden',  speed: 2, dur: 59,   mat: 5,   m: [186, 148, 95],  d: [128, 96, 56] },
@@ -458,7 +461,7 @@ const stackMax = (id) => (isDur(id) || id === 106 || id === 107 || id === 186 ||
 const isBlk = (id) => id < 100 || (id >= 200 && !(id >= 215 && id <= 230));   /* blocks live at 0 to 99 and 200 up, items at 100 to 199 */
 const itemName = (id) => isBlk(id) ? NAMES[id] : ITEM_INFO[id].name;
 const itemTile = (id) => id === 80 ? 126 : isBlk(id) ? DEFS[id].f[0] : ITEM_INFO[id].tile;
-const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 208];
+const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 208, 231, 232];
 const PALETTE = PLACEABLE.concat([100, 101, 102, 103, 104, 105, 106, 107, 108, 109]);
 for (let i = 0; i < 12; i++) PALETTE.push(TOOL_BASE + i);
 for (let i = 0; i < 4; i++) PALETTE.push(SWORD_BASE + i);
@@ -488,7 +491,7 @@ bi(32, 0.2, null, -1); bi(33, 0.2, null, -1); bi(34, 0.4, null, -1); bi(35, 0, n
 bi(36, 0, null, -1); bi(41, 3.5, 'pick', 0); bi(49, 0.6, 'shovel', -1);
 bi(50, 2, 'axe', -1); bi(51, 2, 'axe', -1); bi(52, 2, 'axe', -1); bi(53, 2, 'axe', -1); bi(54, 0.2, null, -1); bi(55, 0.6, 'shovel', -1); bi(56, 3, 'pick', 1); bi(57, 3, 'pick', 0); bi(58, 3, 'pick', 0); bi(59, 3, 'pick', 0); bi(60, 3, 'pick', 0);
 for (let i = 200; i <= 204; i++) bi(i, 0, null, -1);
-bi(205, 0.3, null, -1); bi(212, 0, null, -1); bi(213, 0.4, 'pick', -1); bi(214, 0.3, null, -1); bi(206, 2.5, 'axe', -1); bi(207, 0, null, -1); bi(208, 3, 'axe', -1);
+bi(205, 0.3, null, -1); bi(231, 0.8, null, -1); bi(232, 2, 'axe', -1); bi(212, 0, null, -1); bi(213, 0.4, 'pick', -1); bi(214, 0.3, null, -1); bi(206, 2.5, 'axe', -1); bi(207, 0, null, -1); bi(208, 3, 'axe', -1);
 bi(61, 0, null, -1); bi(62, 0.5, null, -1); bi(64, 0.5, null, -1); bi(66, 0.5, null, -1); bi(68, 0.5, null, -1); bi(70, 3, 'pick', 0); bi(71, 3, 'pick', 0); bi(73, 0.3, null, -1); bi(75, 3, 'pick', 2); bi(76, 3, 'pick', 1); bi(77, 5, 'pick', 0); bi(80, 5, 'pick', 0); bi(78, 5, 'pick', 1); bi(79, 5, 'pick', 2); bi(81, 0.6, 'shovel', -1); bi(82, 3, 'pick', 2); bi(83, 5, 'pick', 2); bi(84, 0, null, -1); bi(85, 0, null, -1); bi(86, 0, null, -1); bi(87, 0.6, 'shovel', -1); bi(88, 0, null, -1); bi(89, 0, null, -1); bi(90, 0, null, -1); bi(91, 0, null, -1); bi(92, 0, null, -1); bi(93, 0, null, -1); bi(94, 0, null, -1); bi(95, 0, null, -1); bi(96, 0, null, -1); bi(97, 0, null, -1); bi(98, 0, null, -1); bi(99, 0, null, -1);
 const binfo = (id) => BINFO[canon(id)];
 /* what a block turns into when you mine it (no furnace yet, so iron ore gives ingots) */
@@ -537,6 +540,8 @@ shaped([[5, 5], [5, 5]], 17, 1);       /* 4 planks -> crafting table */
 shaped([[171, 171, 171], [5, 5, 5]], 205, 1);   /* bed: 3 feathers over 3 planks */
 shaped([[5, 5, 5], [5, 0, 5], [5, 5, 5]], 206, 1);
 shaped([[5, 5], [5, 5], [5, 5]], 208, 3);   /* door: 6 planks make 3 doors */
+shaped([[5, 100, 5], [5, 100, 5]], 232, 3);   /* fence: planks and sticks make 3 fences */
+shapeless([140, 140, 140, 140], 231, 1);      /* 4 string make 1 wool block */
 shaped([[202, 202, 202]], 193, 3);   /* paper: 3 sugarcane in a row */
 shaped([[140, 140], [140, 140]], 195, 1);   /* fabric: 4 string */
 shapeless([193, 193, 193, 195], 196, 1);   /* book: 3 paper and a fabric */
@@ -1603,6 +1608,18 @@ for (let y = 3; y <= 7; y++) for (let x = 8; x <= 12; x++) px(209, x, y, 64 + (x
 for (let i = 0; i < 7; i++) { px(205, 8 + i, 10 - i, 244, 244, 240); if (i > 0) px(205, 9 + i, 10 - i, 214, 214, 206); }
 px(205, 7, 11, 30, 30, 40);
 for (let y = 3; y <= 12; y++) for (let x = 2; x <= 13; x++) { const c = ((x >> 1) + (y >> 1)) % 2; px(203, x, y, c ? 226 : 206, c ? 222 : 200, c ? 206 : 182); }
+/* wool (226): soft, lightly mottled off-white fabric */
+for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+  const v = ((x * 17 + y * 29 + x * y * 3) % 11) - 5;
+  const seam = (x % 8 === 0 || y % 8 === 0) ? -5 : 0;
+  px(226, x, y, 224 + v + seam, 220 + v + seam, 207 + v + seam);
+}
+/* fence wood (227): warm timber grain */
+for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+  const v = ((x * 13 + y * 7 + x * y) % 13) - 6;
+  const grain = (x % 5 === 0) ? -12 : (x % 5 === 1 ? 5 : 0);
+  px(227, x, y, 146 + v + grain, 103 + v + grain, 59 + v + grain);
+}
 const tex = new THREE.CanvasTexture(atlas);
 tex.magFilter = THREE.NearestFilter;
 tex.minFilter = THREE.NearestFilter;
@@ -2447,6 +2464,22 @@ function meshChunk(c) {
       /* buttons and pressure plates: a flat pad that sinks a little when pressed */
       const btn = id <= 67, on = (id & 1) === 1, a = btn ? 0.3 : 0.06, b = btn ? 0.7 : 0.94;
       flat(x, y, z, a, a, b, b, y + (btn ? (on ? 0.06 : 0.12) : (on ? 0.04 : 0.08)), def.f[0], 0.95, true);
+      continue;
+    }
+    if (id === 232) {
+      /* fence: a central post with two rails connecting to adjacent solid blocks or fences */
+      const wood = 227, dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      box(x, y, z, 0.375, 0, 0.375, 0.625, 1, 0.625, wood);
+      for (const dir of dirs) {
+        const nx = x + dir[0], nz = z + dir[1], near = get(nx, y, nz);
+        if (near !== 232 && (near === 0 || TRANSP[near])) continue;
+        for (const yy of [0.32, 0.68]) {
+          if (dir[0] > 0) box(x, y, z, 0.5, yy, 0.39, 1, yy + 0.12, 0.61, wood);
+          else if (dir[0] < 0) box(x, y, z, 0, yy, 0.39, 0.5, yy + 0.12, 0.61, wood);
+          else if (dir[1] > 0) box(x, y, z, 0.39, yy, 0.5, 0.61, yy + 0.12, 1, wood);
+          else box(x, y, z, 0.39, yy, 0, 0.61, yy + 0.12, 0.5, wood);
+        }
+      }
       continue;
     }
     if (id === 80) {
