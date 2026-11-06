@@ -1739,6 +1739,7 @@ window.addEventListener('resize', () => {
 
 /* -------------------------------------------------------------------- world */
 const chunks = new Map();
+const structureChests = new Set(); /* world-generated chests, used to seed loot exactly once */
 const key = (cx, cz) => cx + ',' + cz;
 
 /* caves: wide winding tunnels (two noise fields crossing zero) plus big caverns deep down */
@@ -1981,6 +1982,35 @@ function genChunk(cx, cz) {
       const kh = Math.min(depth - 1, 2 + ((hash2(wx + 5, wz + 313) * 5) | 0));
       for (let dy = 1; dy <= kh; dy++) data[x + (z << 4) + ((h + dy) << 8)] = 99;
     } else if (r < 0.1) data[x + (z << 4) + ((h + 1) << 8)] = 98;
+  }
+  /* abandoned tents: one deterministic candidate per chunk, strongly biased toward forests */
+  if (wid === 'o') {
+    const tx = 8, tz = 8, wx = cx * CS + tx, wz = cz * CS + tz;
+    const b = bio[tx + tz * 16], h = hts[tx + tz * 16];
+    const chance = b === 1 ? 0.075 : b === 0 ? 0.009 : b === 2 ? 0.0015 : 0;
+    let clear = chance > 0 && hash2(wx + 701, wz + 811) < chance && h >= SEA + 2 && h <= 38 && h + 4 < H;
+    const groundId = b === 2 ? 8 : 1;
+    /* keep the whole footprint in one flat, open biome so chunk edges never split a tent */
+    for (let z = 5; z <= 11 && clear; z++) for (let x = 6; x <= 10 && clear; x++) {
+      const ci = x + z * 16, gh = hts[ci];
+      if (bio[ci] !== b || gh !== h || data[x + (z << 4) + (gh << 8)] !== groundId) { clear = false; break; }
+      for (let y = gh + 1; y <= h + 4; y++) if (data[x + (z << 4) + (y << 8)] !== 0) { clear = false; break; }
+    }
+    if (clear) {
+      /* four fence supports, with a stepped wool canopy */
+      for (const p of [[6, 6], [10, 6], [6, 10], [10, 10]]) data[p[0] + (p[1] << 4) + ((h + 1) << 8)] = 232;
+      for (let z = 6; z <= 10; z++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const roofY = h + (dx === 0 ? 4 : (Math.abs(dx) === 1 ? 3 : 2));
+          data[(tx + dx) + (z << 4) + (roofY << 8)] = 231;
+        }
+      }
+      /* a chest just outside the entrance */
+      const chestY = h + 1;
+      data[tx + (11 << 4) + (chestY << 8)] = 206;
+      structureChests.add(wx + ',' + chestY + ',' + (wz + 3));
+      if (h + 4 > maxY) maxY = h + 4;
+    }
   }
   const e = edits[key(cx, cz)];
   if (e) for (const k in e) {
@@ -2989,8 +3019,24 @@ function furnaceTick(dt) {
 }
 /* chests: 27 slots each, keyed by position like furnaces */
 const chests = new Map(); let curChest = null;
-function getChest(x, y, z) { const k = fkey(x, y, z); let c = chests.get(k); if (!c) { c = new Array(27).fill(null); chests.set(k, c); } return c; }
-function chestsJSON() { const o = {}; chests.forEach((c, k) => { if (c.some(Boolean)) o[k] = c; }); return o; }
+function getChest(x, y, z) {
+  const k = fkey(x, y, z); let c = chests.get(k);
+  if (!c) {
+    c = new Array(27).fill(null);
+    if (structureChests.has(k)) {
+      const rnd = mulberry32(Math.imul(x, 73856093) ^ Math.imul(z, 19349663) ^ Math.imul(y, 83492791) ^ Math.imul(seed, 2654435761));
+      const pool = [160, 161, 162, 172, 173, 176, 184, 187, 191, 192, 140, 131, 132];
+      const count = 4 + ((rnd() * 3) | 0);
+      for (let i = 0; i < count; i++) {
+        const slot = (rnd() * 27) | 0, id = pool[(rnd() * pool.length) | 0];
+        if (!c[slot]) c[slot] = makeStack(id, 1 + ((rnd() * 4) | 0));
+      }
+    }
+    chests.set(k, c);
+  }
+  return c;
+}
+function chestsJSON() { const o = {}; chests.forEach((c, k) => { o[k] = c; }); return o; }
 (function loadChests() {
   if (!sameGen || !saved || !saved.chests || typeof saved.chests !== 'object') return;
   for (const k in saved.chests) {
