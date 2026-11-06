@@ -1778,48 +1778,6 @@ function genNether(cx, cz) {
       if (id) { data[i + (y << 8)] = id; if (y > maxY) maxY = y; }
     }
   }
-  /* abandoned houses: one deterministic candidate per chunk, 1 in 99 chance, any Overworld biome */
-  if (wid === 'o') {
-    const hx = 8, hz = 8, wx = cx * CS + hx, wz = cz * CS + hz;
-    const h = hts[hx + hz * 16];
-    const appears = hash2(wx + 1907, wz + 2909) < (1 / 99) && h >= SEA + 2 && h <= 38 && h + 5 < H;
-    if (appears) {
-      const floorY = h + 1;
-      /* compact abandoned timber house; intentionally terrain-tolerant */
-      for (let z = 5; z <= 10; z++) for (let x = 5; x <= 10; x++)
-        data[x + (z << 4) + (h << 8)] = 5;
-      for (let y = floorY; y <= h + 3; y++) {
-        for (let p = 5; p <= 10; p++) {
-          const corner = (p === 5 || p === 10);
-          data[5 + (p << 4) + (y << 8)] = corner ? 6 : 5;
-          data[10 + (p << 4) + (y << 8)] = corner ? 6 : 5;
-          data[p + (5 << 4) + (y << 8)] = corner ? 6 : 5;
-          data[p + (10 << 4) + (y << 8)] = corner ? 6 : 5;
-        }
-      }
-      /* windows and a two-block entrance on the south wall */
-      for (const x of [7, 8]) {
-        data[x + (5 << 4) + ((h + 2) << 8)] = 9;
-        data[x + (10 << 4) + ((h + 2) << 8)] = 9;
-      }
-      data[7 + (10 << 4) + (floorY << 8)] = 0;
-      data[8 + (10 << 4) + (floorY << 8)] = 0;
-      data[7 + (10 << 4) + ((h + 2) << 8)] = 0;
-      data[8 + (10 << 4) + ((h + 2) << 8)] = 0;
-      /* flat, slightly overhanging plank roof */
-      for (let z = 4; z <= 11; z++) for (let x = 4; x <= 11; x++)
-        data[x + (z << 4) + ((h + 4) << 8)] = 5;
-      /* two loot chests inside the house */
-      for (const p of [[7, 7], [9, 7]]) {
-        const chestX = wx + (p[0] - hx), chestZ = wz + (p[1] - hz), chestY = floorY;
-        data[p[0] + (p[1] << 4) + (chestY << 8)] = 206;
-        const ck = chestX + ',' + chestY + ',' + chestZ;
-        structureChests.add(ck);
-        houseChests.add(ck);
-      }
-      if (h + 4 > maxY) maxY = h + 4;
-    }
-  }
   const e = edits[key(cx, cz)];
   if (e) for (const k in e) {
     const idx = +k, ev = e[k], bid = ev & 255;
@@ -2025,6 +1983,48 @@ function genChunk(cx, cz) {
       const kh = Math.min(depth - 1, 2 + ((hash2(wx + 5, wz + 313) * 5) | 0));
       for (let dy = 1; dy <= kh; dy++) data[x + (z << 4) + ((h + dy) << 8)] = 99;
     } else if (r < 0.1) data[x + (z << 4) + ((h + 1) << 8)] = 98;
+  }
+  /* abandoned houses: one deterministic candidate per chunk, 1 in 99 chance, any Overworld biome */
+  if (wid === 'o') {
+    const hx = 8, hz = 8, wx = cx * CS + hx, wz = cz * CS + hz;
+    const h = hts[hx + hz * 16];
+    const appears = hash2(wx + 1907, wz + 2909) < (1 / 99) && h >= SEA + 2 && h <= 38 && h + 5 < H;
+    if (appears) {
+      const floorY = h + 1;
+      /* compact abandoned timber house; intentionally terrain-tolerant */
+      for (let z = 5; z <= 10; z++) for (let x = 5; x <= 10; x++)
+        data[x + (z << 4) + (h << 8)] = 5;
+      for (let y = floorY; y <= h + 3; y++) {
+        for (let p = 5; p <= 10; p++) {
+          const corner = (p === 5 || p === 10);
+          data[5 + (p << 4) + (y << 8)] = corner ? 6 : 5;
+          data[10 + (p << 4) + (y << 8)] = corner ? 6 : 5;
+          data[p + (5 << 4) + (y << 8)] = corner ? 6 : 5;
+          data[p + (10 << 4) + (y << 8)] = corner ? 6 : 5;
+        }
+      }
+      /* windows and a two-block entrance on the south wall */
+      for (const x of [7, 8]) {
+        data[x + (5 << 4) + ((h + 2) << 8)] = 9;
+        data[x + (10 << 4) + ((h + 2) << 8)] = 9;
+      }
+      data[7 + (10 << 4) + (floorY << 8)] = 0;
+      data[8 + (10 << 4) + (floorY << 8)] = 0;
+      data[7 + (10 << 4) + ((h + 2) << 8)] = 0;
+      data[8 + (10 << 4) + ((h + 2) << 8)] = 0;
+      /* flat, slightly overhanging plank roof */
+      for (let z = 4; z <= 11; z++) for (let x = 4; x <= 11; x++)
+        data[x + (z << 4) + ((h + 4) << 8)] = 5;
+      /* two loot chests inside the house */
+      for (const p of [[7, 7], [9, 7]]) {
+        const chestX = wx + (p[0] - hx), chestZ = wz + (p[1] - hz), chestY = floorY;
+        data[p[0] + (p[1] << 4) + (chestY << 8)] = 206;
+        const ck = chestX + ',' + chestY + ',' + chestZ;
+        structureChests.add(ck);
+        houseChests.add(ck);
+      }
+      if (h + 4 > maxY) maxY = h + 4;
+    }
   }
   /* abandoned tents: one deterministic candidate per chunk, strongly biased toward forests */
   if (wid === 'o') {
