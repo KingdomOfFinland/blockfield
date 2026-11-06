@@ -3844,7 +3844,7 @@ const CMDS = {
     if (what !== 'tent' && what !== 'tents') return 'Usage: locate [tent]';
     if (wid !== 'o') return 'Locate currently works in the Overworld';
     const pcx = Math.floor(player.x / CS), pcz = Math.floor(player.z / CS);
-    const maxRing = 12;
+    const maxRing = 32;
     let best = null, bestD = Infinity;
     for (let ring = 0; ring <= maxRing; ring++) {
       for (let dz = -ring; dz <= ring; dz++) for (let dx = -ring; dx <= ring; dx++) {
