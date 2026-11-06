@@ -1740,6 +1740,7 @@ window.addEventListener('resize', () => {
 /* -------------------------------------------------------------------- world */
 const chunks = new Map();
 const structureChests = new Set(); /* world-generated chests, used to seed loot exactly once */
+const houseChests = new Set(); /* house containers use a richer loot table */
 const key = (cx, cz) => cx + ',' + cz;
 
 /* caves: wide winding tunnels (two noise fields crossing zero) plus big caverns deep down */
@@ -1775,6 +1776,48 @@ function genNether(cx, cz) {
       else if (y <= 10) id = LAVA;
       if (id === 213 && (y === ch || y === ch + 1) && hash2(wx >> 1, wz >> 1) < 0.09) id = 214;
       if (id) { data[i + (y << 8)] = id; if (y > maxY) maxY = y; }
+    }
+  }
+  /* abandoned houses: one deterministic candidate per chunk, 1 in 99 chance, any Overworld biome */
+  if (wid === 'o') {
+    const hx = 8, hz = 8, wx = cx * CS + hx, wz = cz * CS + hz;
+    const h = hts[hx + hz * 16];
+    const appears = hash2(wx + 1907, wz + 2909) < (1 / 99) && h >= SEA + 2 && h <= 38 && h + 5 < H;
+    if (appears) {
+      const floorY = h + 1;
+      /* compact abandoned timber house; intentionally terrain-tolerant */
+      for (let z = 5; z <= 10; z++) for (let x = 5; x <= 10; x++)
+        data[x + (z << 4) + (h << 8)] = 5;
+      for (let y = floorY; y <= h + 3; y++) {
+        for (let p = 5; p <= 10; p++) {
+          const corner = (p === 5 || p === 10);
+          data[5 + (p << 4) + (y << 8)] = corner ? 6 : 5;
+          data[10 + (p << 4) + (y << 8)] = corner ? 6 : 5;
+          data[p + (5 << 4) + (y << 8)] = corner ? 6 : 5;
+          data[p + (10 << 4) + (y << 8)] = corner ? 6 : 5;
+        }
+      }
+      /* windows and a two-block entrance on the south wall */
+      for (const x of [7, 8]) {
+        data[x + (5 << 4) + ((h + 2) << 8)] = 9;
+        data[x + (10 << 4) + ((h + 2) << 8)] = 9;
+      }
+      data[7 + (10 << 4) + (floorY << 8)] = 0;
+      data[8 + (10 << 4) + (floorY << 8)] = 0;
+      data[7 + (10 << 4) + ((h + 2) << 8)] = 0;
+      data[8 + (10 << 4) + ((h + 2) << 8)] = 0;
+      /* flat, slightly overhanging plank roof */
+      for (let z = 4; z <= 11; z++) for (let x = 4; x <= 11; x++)
+        data[x + (z << 4) + ((h + 4) << 8)] = 5;
+      /* two loot chests inside the house */
+      for (const p of [[7, 7], [9, 7]]) {
+        const chestX = wx + (p[0] - hx), chestZ = wz + (p[1] - hz), chestY = floorY;
+        data[p[0] + (p[1] << 4) + (chestY << 8)] = 206;
+        const ck = chestX + ',' + chestY + ',' + chestZ;
+        structureChests.add(ck);
+        houseChests.add(ck);
+      }
+      if (h + 4 > maxY) maxY = h + 4;
     }
   }
   const e = edits[key(cx, cz)];
@@ -3019,11 +3062,14 @@ function getChest(x, y, z) {
     c = new Array(27).fill(null);
     if (structureChests.has(k)) {
       const rnd = mulberry32(Math.imul(x, 73856093) ^ Math.imul(z, 19349663) ^ Math.imul(y, 83492791) ^ Math.imul(seed, 2654435761));
-      const pool = [160, 161, 162, 172, 173, 176, 184, 187, 191, 192, 140, 131, 132];
-      const count = 4 + ((rnd() * 3) | 0);
+      const rich = houseChests.has(k);
+      const pool = rich
+        ? [101, 102, 103, 108, 109, 134, 135, 144, 145, 154, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 128, 129, 132, 133, 140, 150, 155, 156, 157, 158, 160, 162, 165, 168, 170, 175, 178, 183, 188, 190, 192]
+        : [160, 161, 162, 172, 173, 176, 184, 187, 191, 192, 140, 131, 132];
+      const count = rich ? 7 + ((rnd() * 5) | 0) : 4 + ((rnd() * 3) | 0);
       for (let i = 0; i < count; i++) {
         const slot = (rnd() * 27) | 0, id = pool[(rnd() * pool.length) | 0];
-        if (!c[slot]) c[slot] = makeStack(id, 1 + ((rnd() * 4) | 0));
+        if (!c[slot]) c[slot] = makeStack(id, isDur(id) ? 1 : 1 + ((rnd() * (rich ? 6 : 4)) | 0));
       }
     }
     chests.set(k, c);
