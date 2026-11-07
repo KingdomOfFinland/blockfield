@@ -468,10 +468,10 @@ function toolOf(st) {
 }
 const toolMax = (id) => (id >= 215 && id <= 230) ? ARM[id].dur : (id >= 155 && id <= 158) ? 750 : (id >= 240 && id <= 243) ? 1200 : id === 159 ? 90 : id === 172 ? 120 : (id >= 146 && id <= 149) ? 32 : (id >= 136 && id <= 139) ? 190 : id === 133 ? 385 : TIERS[isSword(id) ? id - SWORD_BASE : (id - TOOL_BASE) % 4].dur;
 const stackMax = (id) => (isDur(id) || id === 106 || id === 107 || id === 186 || id === 197 || id === 198) ? 1 : (id === 105 ? 16 : STACK);
-const isBlk = (id) => id < 100 || (id >= 200 && !(id >= 215 && id <= 230) && !(id >= 239 && id <= 243));   /* blocks live at 0 to 99 and 200 up, items at 100 to 199 */
+const isBlk = (id) => id < 100 || (id >= 200 && !(id >= 215 && id <= 230) && !(id >= 239 && id <= 243));   /* blocks live at 0 to 99 and 200 to 238; emerald items use 239 to 243 */
 const itemName = (id) => isBlk(id) ? NAMES[id] : ITEM_INFO[id].name;
 const itemTile = (id) => id === 80 ? 126 : isBlk(id) ? DEFS[id].f[0] : ITEM_INFO[id].tile;
-const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 238, 208, 231, 232, 233, 234, 235, 236];
+const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 237, 238, 208, 231, 232, 233, 234, 235, 236];
 const PALETTE = PLACEABLE.concat([100, 101, 102, 103, 104, 105, 106, 107, 108, 109]);
 for (let i = 0; i < 12; i++) PALETTE.push(TOOL_BASE + i);
 for (let i = 0; i < 4; i++) PALETTE.push(SWORD_BASE + i);
