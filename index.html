@@ -316,7 +316,7 @@ if (typeof THREE === 'undefined') {
 }
 
 /* ---------------------------------------------------------------- constants */
-const CS = 16, H = 64, NT = 232, TS = 16, EPS = 0.0008, LEAVES = 7;
+const CS = 16, H = 64, NT = 239, TS = 16, EPS = 0.0008, LEAVES = 7;
 const HOT = 10, INV = 30, TOTAL = HOT + INV, STACK = 64;
 const WATER = 19, LAVA = 20, OBSIDIAN = 21, SNOW = 22, ICE = 23, SEA = 20, LAVA_Y = 6, GEN = 3, CACTUS = 34, BUSH = 35;
 const isFluid = (id) => id === WATER || id === LAVA;
@@ -339,6 +339,7 @@ const NAMES = ['Air', 'Grass', 'Dirt', 'Stone', 'Cobblestone', 'Planks', 'Log', 
   'Torch', 'Torch', 'Torch', 'Torch', 'Torch', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Furnace', 'Gravel',
   'Acacia Log', 'Acacia Log', 'Acacia Log', 'Acacia Planks', 'Acacia Leaves', 'Savanna Grass', 'Copper Ore', 'Copper Block', 'Exposed Copper', 'Weathered Copper', 'Oxidized Copper',
   'Copper Wire', 'Lamp', 'Lamp', 'Lever', 'Lever', 'Button', 'Button', 'Pressure Plate', 'Pressure Plate', 'Battery', 'Copper Gate', 'Copper Gate', 'Repeater', 'Repeater', 'Gold Ore', 'Gold Block', 'Coal Block', 'Iron Block', 'Diamond Block', 'Anvil', 'Clay', 'Ruby Ore', 'Ruby Block', 'Tomato Plant', 'Lettuce', 'Carrot Plant', 'Farmland', 'Tomato Seedling', 'Lettuce Seedling', 'Carrot Seedling', 'Wheat Plant', 'Wheat Seedling', 'Bush', 'Dandelion', 'Poppy', 'Cornflower', 'Pink Tulip', 'Seagrass', 'Kelp'];
+NAMES[237] = 'Emerald Ore'; NAMES[238] = 'Emerald Block';
 const TRANSP = [0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
@@ -443,6 +444,8 @@ ITEM_INFO[130] = { name: 'Rotten Flesh', tile: 75 }; ITEM_INFO[131] = { name: 'B
 ['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[146 + i] = { name: 'Golden ' + nm, tile: 118 + i }; }); ITEM_INFO[142] = { name: 'Rock', tile: 112 }; ITEM_INFO[143] = { name: 'Packed Snowball', tile: 113 };
 ITEM_INFO[151] = { name: 'Clay Ball', tile: 129 }; ITEM_INFO[152] = { name: 'Brick', tile: 130 }; ITEM_INFO[153] = { name: 'Clay Bowl', tile: 131 };
 ITEM_INFO[154] = { name: 'Ruby', tile: 133 }; ITEM_INFO[159] = { name: 'Knife', tile: 138 };
+ITEM_INFO[239] = { name: 'Emerald', tile: 234 };
+['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[240 + i] = { name: 'Emerald ' + nm, tile: 235 + i }; });
 [['Tomato', 143], ['Lettuce', 144], ['Carrot', 145], ['Sliced Tomato', 146], ['Sliced Lettuce', 147], ['Sliced Carrot', 148], ['Tomato Salad', 149], ['Carrot Salad', 150], ['Garden Salad', 151], ['Raw Chicken', 152], ['Cooked Chicken', 153], ['Feather', 154]].forEach((e, i) => { ITEM_INFO[160 + i] = { name: e[0], tile: e[1] }; });
 [['Hoe', 159], ['Egg', 160], ['Fried Egg', 161], ['Veggie Pie', 162]].forEach((e, i) => { ITEM_INFO[172 + i] = { name: e[0], tile: e[1] }; });
 [['Wheat', 165], ['Flour', 166], ['Bread', 167], ['Bowl of Milk', 168], ['Cheese', 169], ['Dough', 170], ['Raw Pizza', 171], ['Pizza', 172]].forEach((e, i) => { ITEM_INFO[176 + i] = { name: e[0], tile: e[1] }; });
@@ -450,23 +453,24 @@ ITEM_INFO[154] = { name: 'Ruby', tile: 133 }; ITEM_INFO[159] = { name: 'Knife', 
 [['Fishing Rod', 191], ['Raw Fish', 192], ['Cooked Fish', 193], ['Raw Crab', 194], ['Cooked Crab', 195], ['Rice', 196], ['Sushi', 197]].forEach((e, i) => { ITEM_INFO[186 + i] = { name: e[0], tile: e[1] }; });   /* 186 rod, 187/188 fish, 189/190 crab, 191 rice, 192 sushi */
 ['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[155 + i] = { name: 'Ruby ' + nm, tile: 134 + i }; });
 ['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[136 + i] = { name: 'Copper ' + nm, tile: 93 + i }; });
-const isSword = (id) => (id >= SWORD_BASE && id < SWORD_BASE + 4) || id === 139 || id === 149 || id === 158 || id === 159;   /* 158 ruby sword, 159 knife */
-const isTool = (id) => (id >= TOOL_BASE && id < TOOL_BASE + 12) || (id >= 136 && id <= 138) || (id >= 146 && id <= 148) || (id >= 155 && id <= 157);   /* 146 to 149: golden pickaxe, axe, shovel, sword */   /* 136 to 139 are the copper pickaxe, axe, shovel and sword */
+const isSword = (id) => (id >= SWORD_BASE && id < SWORD_BASE + 4) || id === 139 || id === 149 || id === 158 || id === 159 || id === 243;   /* 158 ruby sword, 159 knife */
+const isTool = (id) => (id >= TOOL_BASE && id < TOOL_BASE + 12) || (id >= 136 && id <= 138) || (id >= 146 && id <= 148) || (id >= 155 && id <= 157) || (id >= 240 && id <= 242);   /* 146 to 149: golden pickaxe, axe, shovel, sword */   /* 136 to 139 are the copper pickaxe, axe, shovel and sword */
 const isDur = (id) => isTool(id) || isSword(id) || id === 133 || id === 172 || (id >= 215 && id <= 230);
 function toolOf(st) {
   if (!st || !isTool(st.id)) return null;
+  if (st.id >= 240 && st.id <= 242) return { type: TOOL_TYPES[st.id - 240], tier: 3, lvl: 3, speed: 9 };
   if (st.id >= 155) return { type: TOOL_TYPES[st.id - 155], tier: 2, lvl: 2.5, speed: 7 };   /* ruby: iron's reach, between iron and diamond in speed */
   if (st.id >= 146) return { type: TOOL_TYPES[st.id - 146], tier: 0, lvl: 0, speed: 12 };   /* gold: very fast, wood's reach, breaks almost at once */
   if (st.id >= 136) return { type: TOOL_TYPES[st.id - 136], tier: 1, lvl: 1.5, speed: 5 };   /* copper: stone's reach, a bit faster than stone */
   const k = st.id - TOOL_BASE;
   return { type: TOOL_TYPES[(k / 4) | 0], tier: k % 4 };
 }
-const toolMax = (id) => (id >= 215 && id <= 230) ? ARM[id].dur : (id >= 155 && id <= 158) ? 750 : id === 159 ? 90 : id === 172 ? 120 : (id >= 146 && id <= 149) ? 32 : (id >= 136 && id <= 139) ? 190 : id === 133 ? 385 : TIERS[isSword(id) ? id - SWORD_BASE : (id - TOOL_BASE) % 4].dur;
+const toolMax = (id) => (id >= 215 && id <= 230) ? ARM[id].dur : (id >= 155 && id <= 158) ? 750 : (id >= 240 && id <= 243) ? 1200 : id === 159 ? 90 : id === 172 ? 120 : (id >= 146 && id <= 149) ? 32 : (id >= 136 && id <= 139) ? 190 : id === 133 ? 385 : TIERS[isSword(id) ? id - SWORD_BASE : (id - TOOL_BASE) % 4].dur;
 const stackMax = (id) => (isDur(id) || id === 106 || id === 107 || id === 186 || id === 197 || id === 198) ? 1 : (id === 105 ? 16 : STACK);
 const isBlk = (id) => id < 100 || (id >= 200 && !(id >= 215 && id <= 230));   /* blocks live at 0 to 99 and 200 up, items at 100 to 199 */
 const itemName = (id) => isBlk(id) ? NAMES[id] : ITEM_INFO[id].name;
 const itemTile = (id) => id === 80 ? 126 : isBlk(id) ? DEFS[id].f[0] : ITEM_INFO[id].tile;
-const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 208, 231, 232, 233, 234, 235, 236];
+const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 238, 208, 231, 232, 233, 234, 235, 236];
 const PALETTE = PLACEABLE.concat([100, 101, 102, 103, 104, 105, 106, 107, 108, 109]);
 for (let i = 0; i < 12; i++) PALETTE.push(TOOL_BASE + i);
 for (let i = 0; i < 4; i++) PALETTE.push(SWORD_BASE + i);
@@ -496,7 +500,7 @@ bi(32, 0.2, null, -1); bi(33, 0.2, null, -1); bi(34, 0.4, null, -1); bi(35, 0, n
 bi(36, 0, null, -1); bi(41, 3.5, 'pick', 0); bi(49, 0.6, 'shovel', -1);
 bi(50, 2, 'axe', -1); bi(51, 2, 'axe', -1); bi(52, 2, 'axe', -1); bi(53, 2, 'axe', -1); bi(54, 0.2, null, -1); bi(55, 0.6, 'shovel', -1); bi(56, 3, 'pick', 1); bi(57, 3, 'pick', 0); bi(58, 3, 'pick', 0); bi(59, 3, 'pick', 0); bi(60, 3, 'pick', 0);
 for (let i = 200; i <= 204; i++) bi(i, 0, null, -1);
-bi(205, 0.3, null, -1); bi(231, 0.8, null, -1); bi(232, 2, 'axe', -1); bi(233, 1.2, 'pick', -1); bi(234, 1.5, 'pick', 0); bi(235, 1.2, 'pick', 0); bi(236, 1.2, 'pick', 0); bi(212, 0, null, -1); bi(213, 0.4, 'pick', -1); bi(214, 0.3, null, -1); bi(206, 2.5, 'axe', -1); bi(207, 0, null, -1); bi(208, 3, 'axe', -1);
+bi(205, 0.3, null, -1); bi(231, 0.8, null, -1); bi(232, 2, 'axe', -1); bi(233, 1.2, 'pick', -1); bi(234, 1.5, 'pick', 0); bi(235, 1.2, 'pick', 0); bi(236, 1.2, 'pick', 0); bi(237, 3, 'pick', 3); bi(238, 5, 'pick', 3); bi(212, 0, null, -1); bi(213, 0.4, 'pick', -1); bi(214, 0.3, null, -1); bi(206, 2.5, 'axe', -1); bi(207, 0, null, -1); bi(208, 3, 'axe', -1);
 bi(61, 0, null, -1); bi(62, 0.5, null, -1); bi(64, 0.5, null, -1); bi(66, 0.5, null, -1); bi(68, 0.5, null, -1); bi(70, 3, 'pick', 0); bi(71, 3, 'pick', 0); bi(73, 0.3, null, -1); bi(75, 3, 'pick', 2); bi(76, 3, 'pick', 1); bi(77, 5, 'pick', 0); bi(80, 5, 'pick', 0); bi(78, 5, 'pick', 1); bi(79, 5, 'pick', 2); bi(81, 0.6, 'shovel', -1); bi(82, 3, 'pick', 2); bi(83, 5, 'pick', 2); bi(84, 0, null, -1); bi(85, 0, null, -1); bi(86, 0, null, -1); bi(87, 0.6, 'shovel', -1); bi(88, 0, null, -1); bi(89, 0, null, -1); bi(90, 0, null, -1); bi(91, 0, null, -1); bi(92, 0, null, -1); bi(93, 0, null, -1); bi(94, 0, null, -1); bi(95, 0, null, -1); bi(96, 0, null, -1); bi(97, 0, null, -1); bi(98, 0, null, -1); bi(99, 0, null, -1);
 const binfo = (id) => BINFO[canon(id)];
 /* what a block turns into when you mine it (no furnace yet, so iron ore gives ingots) */
@@ -514,6 +518,7 @@ function dropOf(id) {
   if (id === 56) return 134;
   if (id === 75) return 144;
   if (id === 82) return 154;
+  if (id === 237) return 239;
   if (id >= 84 && id <= 86) return 160 + id - 84;   /* a plant gives the whole vegetable */
   if (id >= 88 && id <= 90) return 160 + id - 88;   /* a seedling gives its vegetable back */
   if (id === 87) return 2;   /* farmland turns back into dirt */
@@ -1285,7 +1290,24 @@ renderer.setSize(window.innerWidth, window.innerHeight);
   [[5, 9], [4, 10], [3, 11], [2, 12]].forEach((c) => set(138, c[0], c[1], [150, 110, 60]));
   [[5, 10], [4, 11], [3, 12], [1, 13]].forEach((c) => set(138, c[0], c[1], [104, 76, 40]));
 })();
-/* ---- ruby block, vegetables, salads and chicken (tiles 139 to 154) ---- */
+/* ---- emerald (tiles 232 to 238): ore, block, gem and tools ---- */
+(function paintEmeraldArt() {
+  const rnd = mulberry32(8383);
+  const set = (t, x, y, c) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) px(t, x, y, c[0], c[1], c[2]); };
+  actx.drawImage(atlas, 3 * TS, 0, TS, TS, 232 * TS, 0, TS, TS);
+  [[3,3],[4,3],[4,4],[10,2],[11,2],[11,3],[6,8],[7,8],[7,9],[12,7],[13,7],[2,12],[3,12],[9,12],[10,12],[10,13]].forEach(c => set(232,c[0],c[1],rnd()<0.6?[36,190,112]:[104,244,164]));
+  for(let y=0;y<16;y++) for(let x=0;x<16;x++) {
+    const edge=x===0||x===15||y===0||y===15, hi=x===1||y===1;
+    set(233,x,y,edge?[12,92,58]:(hi?[136,255,192]:((x+y)%5===0?[68,224,140]:[24,164,96])));
+  }
+  const gem={D:[10,104,62],C:[34,218,126],W:[174,255,210]};
+  for(let y=0;y<16;y++) for(let x=0;x<16;x++){const c=gem[ART.diamond[y].charAt(x)];if(c)set(234,x,y,c);}
+  const M=[48,220,132],D=[16,112,68],col=(t,rows)=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++){const ch=rows[y].charAt(x);if(ch!=='.'){const c=ch==='M'?M:(ch==='D'?D:ART_COL[ch]);if(c)set(t,x,y,c);}}};
+  col(235,ART.pick); col(236,ART.axe); col(237,ART.shovel);
+  for(let i=0;i<9;i++){const x=13-i,y=1+i;set(238,x-1,y,D);set(238,x,y,M);set(238,x+1,y,D);}
+  set(238,14,0,M);set(238,14,1,D);
+})();
+ /* ---- ruby block, vegetables, salads and chicken (tiles 139 to 154) ---- */
 (function paintGardenArt() {
   const rnd = mulberry32(7373);
   const set = (t, x, y, c, v) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) { v = v || 0; px(t, x, y, c[0] + v, c[1] + v, c[2] + v); } };
@@ -1875,6 +1897,7 @@ function genChunk(cx, cz) {
   for (let t = 0; t < 8; t++) oreBlob(data, rnd, 49, (rnd() * 16) | 0, 5 + ((rnd() * 52) | 0), (rnd() * 16) | 0, 18);   /* pockets of gravel */
   const rr = mulberry32(Math.imul(cx, 19349663) ^ Math.imul(cz, 83492791) ^ Math.imul(seed, 2654435761) ^ 777);   /* its own dice, so the rest of the world stays the same */
   for (let t = 0; t < 3; t++) oreBlob(data, rr, 82, (rr() * 16) | 0, 1 + ((rr() * 28) | 0), (rr() * 16) | 0, 3);   /* ruby veins */
+  if (rr() < 0.32) oreBlob(data, rr, 237, (rr() * 16) | 0, 2 + ((rr() * 11) | 0), (rr() * 16) | 0, 2);   /* rare emerald vein */
   const birchPatch = (wx, wz) => fbm(wx * 0.006 + 1500, wz * 0.006 + 1500, 2) > 0.2;
   for (let z = 2; z <= 13; z++) for (let x = 2; x <= 13; x++) {
     const i = x + z * 16, wx = cx * CS + x, wz = cz * CS + z, h = hts[i], b = bio[i];
@@ -4677,7 +4700,7 @@ function attackMob(m) {
   if (dead) return;
   const st = slots[sel];
   let dmg = 1;
-  if (st && isSword(st.id)) dmg = st.id === 158 ? 6.5 : st.id === 159 ? 2.5 : st.id === 139 ? 5.5 : st.id === 149 ? 4 : 4 + (st.id - SWORD_BASE);   /* ruby sword 6.5, knife 2.5 */          /* wooden 4, stone 5, iron 6, diamond 7 */
+  if (st && isSword(st.id)) dmg = st.id === 243 ? 8 : st.id === 158 ? 6.5 : st.id === 159 ? 2.5 : st.id === 139 ? 5.5 : st.id === 149 ? 4 : 4 + (st.id - SWORD_BASE);   /* ruby sword 6.5, knife 2.5 */          /* wooden 4, stone 5, iron 6, diamond 7 */
   else { const t = toolOf(st); if (t) dmg = (t.type === 'axe' ? 3 : 2) + (t.lvl !== undefined ? t.lvl : t.tier); }
   if (creative) dmg = 1000;
   else {
