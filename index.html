@@ -3280,7 +3280,7 @@ function supportCheck(x, y, z, quiet) {
 let soundCtx = null, soundNoise = null;
 function soundContext() {
   const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC || SENS.sound <= 0) return null;
+  if (!AC) return null;
   try {
     if (!soundCtx) {
       soundCtx = new AC();
@@ -3296,6 +3296,7 @@ function playSfx(kind, id) {
   const ctx = soundContext();
   if (!ctx) return;
   const now = ctx.currentTime, master = Math.max(0, Math.min(1, SENS.sound));
+  if (master <= 0) return;
   const wood = [5, 6, 7, 8, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 205, 208, 209, 210, 211, 231, 232].includes(id);
   const soft = [2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 36, 37, 38, 39, 40, 87, 98, 99, 202].includes(id);
   let freq = wood ? 185 : (soft ? 420 : 115), duration = 0.11, noiseLevel = 0.22, toneLevel = 0.12;
