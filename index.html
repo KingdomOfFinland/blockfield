@@ -316,7 +316,7 @@ if (typeof THREE === 'undefined') {
 }
 
 /* ---------------------------------------------------------------- constants */
-const CS = 16, H = 64, NT = 229, TS = 16, EPS = 0.0008, LEAVES = 7;
+const CS = 16, H = 64, NT = 232, TS = 16, EPS = 0.0008, LEAVES = 7;
 const HOT = 10, INV = 30, TOTAL = HOT + INV, STACK = 64;
 const WATER = 19, LAVA = 20, OBSIDIAN = 21, SNOW = 22, ICE = 23, SEA = 20, LAVA_Y = 6, GEN = 3, CACTUS = 34, BUSH = 35;
 const isFluid = (id) => id === WATER || id === LAVA;
@@ -414,6 +414,9 @@ NAMES[213] = 'Netherrack'; DEFS[213] = mk(207, 207, 207); NAMES[214] = 'Glowston
 NAMES[231] = 'Wool'; DEFS[231] = mk(226, 226, 226);
 NAMES[232] = 'Fence'; DEFS[232] = mk(227, 227, 227);
 NAMES[233] = 'Bone Block'; DEFS[233] = mk(228, 228, 228);
+NAMES[234] = 'Fossil Skull'; DEFS[234] = mk(229, 229, 229);
+NAMES[235] = 'Fossil Spine'; DEFS[235] = mk(230, 230, 230);
+NAMES[236] = 'Fossil Limb'; DEFS[236] = mk(231, 231, 231);
 /* items: 100 to 103 are materials, 110 to 121 are tools (type * 4 + tier) */
 const TIERS = [
   { name: 'Wooden',  speed: 2, dur: 59,   mat: 5,   m: [186, 148, 95],  d: [128, 96, 56] },
@@ -463,7 +466,7 @@ const stackMax = (id) => (isDur(id) || id === 106 || id === 107 || id === 186 ||
 const isBlk = (id) => id < 100 || (id >= 200 && !(id >= 215 && id <= 230));   /* blocks live at 0 to 99 and 200 up, items at 100 to 199 */
 const itemName = (id) => isBlk(id) ? NAMES[id] : ITEM_INFO[id].name;
 const itemTile = (id) => id === 80 ? 126 : isBlk(id) ? DEFS[id].f[0] : ITEM_INFO[id].tile;
-const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 208, 231, 232, 233];
+const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 208, 231, 232, 233, 234, 235, 236];
 const PALETTE = PLACEABLE.concat([100, 101, 102, 103, 104, 105, 106, 107, 108, 109]);
 for (let i = 0; i < 12; i++) PALETTE.push(TOOL_BASE + i);
 for (let i = 0; i < 4; i++) PALETTE.push(SWORD_BASE + i);
@@ -493,7 +496,7 @@ bi(32, 0.2, null, -1); bi(33, 0.2, null, -1); bi(34, 0.4, null, -1); bi(35, 0, n
 bi(36, 0, null, -1); bi(41, 3.5, 'pick', 0); bi(49, 0.6, 'shovel', -1);
 bi(50, 2, 'axe', -1); bi(51, 2, 'axe', -1); bi(52, 2, 'axe', -1); bi(53, 2, 'axe', -1); bi(54, 0.2, null, -1); bi(55, 0.6, 'shovel', -1); bi(56, 3, 'pick', 1); bi(57, 3, 'pick', 0); bi(58, 3, 'pick', 0); bi(59, 3, 'pick', 0); bi(60, 3, 'pick', 0);
 for (let i = 200; i <= 204; i++) bi(i, 0, null, -1);
-bi(205, 0.3, null, -1); bi(231, 0.8, null, -1); bi(232, 2, 'axe', -1); bi(233, 1.2, 'pick', -1); bi(212, 0, null, -1); bi(213, 0.4, 'pick', -1); bi(214, 0.3, null, -1); bi(206, 2.5, 'axe', -1); bi(207, 0, null, -1); bi(208, 3, 'axe', -1);
+bi(205, 0.3, null, -1); bi(231, 0.8, null, -1); bi(232, 2, 'axe', -1); bi(233, 1.2, 'pick', -1); bi(234, 1.5, 'pick', 0); bi(235, 1.2, 'pick', 0); bi(236, 1.2, 'pick', 0); bi(212, 0, null, -1); bi(213, 0.4, 'pick', -1); bi(214, 0.3, null, -1); bi(206, 2.5, 'axe', -1); bi(207, 0, null, -1); bi(208, 3, 'axe', -1);
 bi(61, 0, null, -1); bi(62, 0.5, null, -1); bi(64, 0.5, null, -1); bi(66, 0.5, null, -1); bi(68, 0.5, null, -1); bi(70, 3, 'pick', 0); bi(71, 3, 'pick', 0); bi(73, 0.3, null, -1); bi(75, 3, 'pick', 2); bi(76, 3, 'pick', 1); bi(77, 5, 'pick', 0); bi(80, 5, 'pick', 0); bi(78, 5, 'pick', 1); bi(79, 5, 'pick', 2); bi(81, 0.6, 'shovel', -1); bi(82, 3, 'pick', 2); bi(83, 5, 'pick', 2); bi(84, 0, null, -1); bi(85, 0, null, -1); bi(86, 0, null, -1); bi(87, 0.6, 'shovel', -1); bi(88, 0, null, -1); bi(89, 0, null, -1); bi(90, 0, null, -1); bi(91, 0, null, -1); bi(92, 0, null, -1); bi(93, 0, null, -1); bi(94, 0, null, -1); bi(95, 0, null, -1); bi(96, 0, null, -1); bi(97, 0, null, -1); bi(98, 0, null, -1); bi(99, 0, null, -1);
 const binfo = (id) => BINFO[canon(id)];
 /* what a block turns into when you mine it (no furnace yet, so iron ore gives ingots) */
@@ -1630,6 +1633,28 @@ for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
   const fleck = ((x * 5 + y * 3) % 17 === 0) ? -10 : 0;
   px(228, x, y, 232 + v + seam + fleck, 226 + v + seam + fleck, 207 + v + seam + fleck);
 }
+/* fossil skull (229): aged ivory with dark eye sockets and a nasal notch */
+for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+  const socket = (x >= 3 && x <= 6 && y >= 5 && y <= 8) || (x >= 9 && x <= 12 && y >= 5 && y <= 8);
+  const nose = x >= 7 && x <= 8 && y >= 9 && y <= 12;
+  const grain = ((x * 7 + y * 11) % 7) - 3;
+  const base = socket || nose ? 91 : 220 + grain;
+  px(229, x, y, base + 8, base + 5, base - 8);
+}
+/* fossil spine (230): pale vertebrae separated by dark mineral seams */
+for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+  const seam = (y % 4 === 0 || x === 0 || x === 15) ? -42 : 0;
+  const grain = ((x * 3 + y * 5) % 9) - 4;
+  px(230, x, y, 220 + seam + grain, 211 + seam + grain, 188 + seam + grain);
+}
+/* fossil limb (231): long ivory bone with rounded ends */
+for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+  const bone = (y >= 5 && y <= 10 && x >= 2 && x <= 13) ||
+    ((x >= 1 && x <= 5 || x >= 10 && x <= 14) && y >= 3 && y <= 12);
+  const grain = ((x * 5 + y * 3) % 7) - 3;
+  const v = bone ? 224 + grain : 105 + grain;
+  px(231, x, y, v + 5, v, v - 17);
+}
 const tex = new THREE.CanvasTexture(atlas);
 tex.magFilter = THREE.NearestFilter;
 tex.minFilter = THREE.NearestFilter;
@@ -2090,6 +2115,34 @@ function genChunk(cx, cz) {
         data[p[0] + (p[1] << 4) + (floorY << 8)] = 4;
       if (h + 9 > maxY) maxY = h + 9;
     }
+  }
+  /* underground fossils: 0.069% per Overworld chunk (about 1 in 1,449) */
+  if (wid === 'o' && hash2(cx * CS + 8 + 19001, cz * CS + 8 + 29003) < 0.00069) {
+    const fx = 8, fz = 8;
+    const fy = 8 + ((hash2(cx * CS + 8 + 19007, cz * CS + 8 + 29011) * 18) | 0);
+    const alongX = hash2(cx * CS + 8 + 19013, cz * CS + 8 + 29017) < 0.5;
+    const point = (along, across) => alongX ? [fx + along, fz + across] : [fx + across, fz + along];
+    const bones = [];
+    /* skull at one end, followed by a five-vertebra spine */
+    const skull = point(-3, 0);
+    bones.push([skull[0], fy, skull[1], 234]);
+    for (let n = -2; n <= 2; n++) {
+      const p = point(n, 0);
+      bones.push([p[0], fy, p[1], 235]);
+    }
+    /* limbs are a rarer addition to the fossil */
+    const hasLimbs = hash2(cx * CS + 8 + 19019, cz * CS + 8 + 29023) < 0.18;
+    if (hasLimbs) {
+      for (const n of [-1, 1]) for (const side of [-1, 1]) {
+        const p = point(n, side);
+        bones.push([p[0], fy, p[1], 236]);
+      }
+    }
+    /* only place a complete fossil where every bone can replace solid stone */
+    const fits = bones.every((p) => p[0] >= 1 && p[0] <= 14 && p[2] >= 1 && p[2] <= 14 &&
+      data[p[0] + (p[2] << 4) + (p[1] << 8)] === 3);
+    if (fits) for (const p of bones)
+      data[p[0] + (p[2] << 4) + (p[1] << 8)] = p[3];
   }
   /* abandoned tents: one deterministic candidate per chunk, strongly biased toward forests */
   if (wid === 'o') {
