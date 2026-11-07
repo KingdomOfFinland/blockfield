@@ -3299,7 +3299,9 @@ function playSfx(kind, id) {
   const wood = [5, 6, 7, 8, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 205, 208, 209, 210, 211, 231, 232].includes(id);
   const soft = [2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 36, 37, 38, 39, 40, 87, 98, 99, 202].includes(id);
   let freq = wood ? 185 : (soft ? 420 : 115), duration = 0.11, noiseLevel = 0.22, toneLevel = 0.12;
-  if (kind === 'step') { freq = wood ? 125 : (soft ? 240 : 92); duration = 0.085; noiseLevel = 0.12; toneLevel = 0.08; }
+  if (kind === 'animal') { freq = 430 + Math.random() * 180; duration = 0.24; noiseLevel = 0.13; toneLevel = 0.13; }
+  else if (kind === 'hostile') { freq = 78 + Math.random() * 35; duration = 0.32; noiseLevel = 0.2; toneLevel = 0.14; }
+  else if (kind === 'step') { freq = wood ? 125 : (soft ? 240 : 92); duration = 0.085; noiseLevel = 0.12; toneLevel = 0.08; }
   else if (kind === 'splash') { freq = 520; duration = 0.16; noiseLevel = 0.34; toneLevel = 0.035; }
   else if (kind === 'jump') { freq = 260; duration = 0.13; noiseLevel = 0.025; toneLevel = 0.12; }
   else if (kind === 'place') { freq = wood ? 230 : (soft ? 510 : 145); duration = 0.09; noiseLevel = 0.14; toneLevel = 0.10; }
@@ -3322,6 +3324,55 @@ function playSfx(kind, id) {
     src.buffer = soundNoise; filter.type = 'lowpass'; filter.frequency.value = kind === 'splash' ? 2400 : (wood ? 1100 : 1800);
     ng.gain.setValueAtTime(noiseLevel, now); ng.gain.exponentialRampToValueAtTime(0.0001, now + duration);
     src.connect(filter); filter.connect(ng); ng.connect(gain); src.start(now); src.stop(now + duration);
+  }
+}
+/* ---- adaptive ambience: quiet procedural loops plus occasional nearby mob calls ---- */
+let ambientGain = null, ambientFilter = null, ambientSource = null;
+let ambientClock = 0, mobCallClock = 5;
+function ensureAmbient(ctx) {
+  if (ambientGain) return;
+  const length = Math.floor(ctx.sampleRate * 2), buf = ctx.createBuffer(1, length, ctx.sampleRate), data = buf.getChannelData(0);
+  for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * 0.35;
+  ambientSource = ctx.createBufferSource(); ambientSource.buffer = buf; ambientSource.loop = true;
+  ambientFilter = ctx.createBiquadFilter(); ambientFilter.type = 'lowpass'; ambientFilter.frequency.value = 700;
+  ambientGain = ctx.createGain(); ambientGain.gain.value = 0.0001;
+  ambientSource.connect(ambientFilter); ambientFilter.connect(ambientGain); ambientGain.connect(ctx.destination);
+  ambientSource.start();
+}
+function ambientStep(dt) {
+  ambientClock -= dt; mobCallClock -= dt;
+  if (ambientClock > 0 && mobCallClock > 0) return;
+  ambientClock = 0.5;
+  const ctx = soundContext();
+  if (!ctx) return;
+  ensureAmbient(ctx);
+  const px = Math.floor(player.x), py = Math.floor(player.y + EYE), pz = Math.floor(player.z);
+  const head = getBlock(px, py, pz), submerged = head === WATER || head === 98 || head === 99;
+  const roof = getBlock(px, py + 2, pz), roof2 = getBlock(px, py + 3, pz);
+  const cave = wid !== 'n' && !submerged && roof !== 0 && roof !== WATER && roof !== LAVA && roof2 !== 0;
+  let mode = wid === 'n' ? 'nether' : submerged ? 'underwater' : cave ? 'cave' : 'wind';
+  if (mode === 'wind') {
+    let waterNear = false;
+    for (let dz = -3; dz <= 3 && !waterNear; dz += 3) for (let dx = -3; dx <= 3; dx += 3) {
+      if (getBlock(px + dx, Math.max(1, py - 2), pz + dz) === WATER) { waterNear = true; break; }
+    }
+    if (waterNear) mode = 'shore';
+  }
+  const presets = {
+    wind: [520, 0.025], cave: [260, 0.035], underwater: [420, 0.045],
+    shore: [1050, 0.018], nether: [180, 0.04]
+  };
+  const p = presets[mode], now = ctx.currentTime;
+  ambientFilter.frequency.setTargetAtTime(p[0], now, 0.8);
+  ambientGain.gain.setTargetAtTime(SENS.sound > 0 ? p[1] * SENS.sound : 0.0001, now, 1.2);
+  if (mobCallClock <= 0) {
+    mobCallClock = 6 + Math.random() * 9;
+    let near = null, best = 18;
+    for (const m of mobs) {
+      const d = Math.hypot(m.x - player.x, m.z - player.z);
+      if (d < best) { best = d; near = m; }
+    }
+    if (near && !submerged) playSfx(near.def.hostile ? 'hostile' : (near.def.aquatic ? 'splash' : 'animal'), 0);
   }
 }
 let stepDistance = 0;
@@ -5396,6 +5447,7 @@ function frame(now) {
     if (keys.ArrowDown) pitch = Math.max(-1.5, pitch - 1.8 * dt);
     const stepX = player.x, stepZ = player.z;
     updatePlayer(dt);
+    ambientStep(dt);
     const walked = Math.hypot(player.x - stepX, player.z - stepZ);
     if (player.onGround && !player.fly && walked > 0.001 && !inLava) {
       stepDistance += walked;
