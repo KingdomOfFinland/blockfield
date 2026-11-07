@@ -3988,7 +3988,7 @@ function findItem(q) {
 }
 const CMD_TIME = { day: 0.1, noon: 0.25, sunset: 0.45, night: 0.6, midnight: 0.75 };
 const CMDS = {
-  help: () => 'help, gamemode creative|survival, time day|noon|sunset|night|midnight, tp x y z, locate [tent|house|castle], give <item> [amount], summon <mob>, kill [all], heal, difficulty normal|hard, seed',
+  help: () => 'help, gamemode creative|survival, time day|noon|sunset|night|midnight, tp x y z, locate [tent|house|castle|fossil], give <item> [amount], summon <mob>, kill [all], heal, difficulty normal|hard, seed',
   gamemode: (a) => { const c = /^c/.test(a[1] || ''), s = /^s/.test(a[1] || ''); if (!c && !s) return 'Usage: gamemode creative|survival'; setMode(c); return 'Game mode: ' + (c ? 'creative' : 'survival'); },
   time: (a) => { const v = CMD_TIME[a[a.length - 1]]; if (v === undefined) return 'Usage: time day|noon|sunset|night|midnight'; worldTime = Math.floor(worldTime / DAY_LEN) * DAY_LEN + DAY_LEN * v; return 'Time ' + clockStr(); },
   tp: (a) => { const n = a.slice(1, 4).map(Number); if (n.length < 3 || n.some(isNaN)) return 'Usage: tp x y z'; player.x = n[0]; player.y = Math.max(1, Math.min(H - 2, n[1])); player.z = n[2]; player.vx = player.vy = player.vz = 0; fallPeak = player.y; return 'Teleported'; },
@@ -3999,10 +3999,11 @@ const CMDS = {
   difficulty: (a) => { const v = a[1] === 'hard' || a[1] === '1' ? 1 : (a[1] === 'normal' || a[1] === '0' ? 0 : -1); if (v < 0) return 'Usage: difficulty normal|hard'; SENS.diff = v; applySettings(); return 'Difficulty: ' + (v ? 'hard' : 'normal'); },
   locate: (a) => {
     const what = (a[1] || 'tent').toLowerCase();
-    if (!['tent', 'tents', 'house', 'houses', 'castle', 'castles'].includes(what)) return 'Usage: locate [tent|house|castle]';
+    if (!['tent', 'tents', 'house', 'houses', 'castle', 'castles', 'fossil', 'fossils'].includes(what)) return 'Usage: locate [tent|house|castle|fossil]';
     if (wid !== 'o') return 'Locate currently works in the Overworld';
     const isCastle = what === 'castle' || what === 'castles';
     const isHouse = what === 'house' || what === 'houses';
+    const isFossil = what === 'fossil' || what === 'fossils';
     const pcx = Math.floor(player.x / CS), pcz = Math.floor(player.z / CS);
     const maxRing = 32;
     let best = null, bestD = Infinity;
@@ -4011,25 +4012,40 @@ const CMDS = {
         if (Math.max(Math.abs(dx), Math.abs(dz)) !== ring) continue;
         const cx = pcx + dx, cz = pcz + dz, ck = key(cx, cz);
         const c = chunks.get(ck) || genChunk(cx, cz);
-        const spots = isCastle ? [[7, 8], [9, 8]] : isHouse ? [[7, 7], [9, 7]] : [[8, 11]];
         let found = null;
-        for (const p of spots) {
-          for (let y = 1; y < H; y++) {
-            if (c.data[p[0] + (p[1] << 4) + (y << 8)] === 206) {
-              found = { x: cx * CS + p[0], y: y, z: cz * CS + p[1] };
+        if (isFossil) {
+          /* fossils occupy a compact area around the chunk's local centre */
+          for (let y = 8; y <= 25 && !found; y++) for (let z = 5; z <= 11 && !found; z++) for (let x = 5; x <= 11; x++) {
+            const id = c.data[x + (z << 4) + (y << 8)];
+            if (id === 234 || id === 235 || id === 236) {
+              found = { x: cx * CS + x, y: y, z: cz * CS + z };
               break;
             }
           }
-          if (found) break;
+        } else {
+          const spots = isCastle ? [[7, 8], [9, 8]] : isHouse ? [[7, 7], [9, 7]] : [[8, 11]];
+          for (const p of spots) {
+            for (let y = 1; y < H; y++) {
+              if (c.data[p[0] + (p[1] << 4) + (y << 8)] === 206) {
+                found = { x: cx * CS + p[0], y: y, z: cz * CS + p[1] };
+                break;
+              }
+            }
+            if (found) break;
+          }
         }
         if (found) {
           const d = Math.hypot(found.x + 0.5 - player.x, found.z + 0.5 - player.z);
           if (d < bestD) { bestD = d; best = found; }
         }
       }
-      if (best) return 'Nearest abandoned ' + (isCastle ? 'castle' : isHouse ? 'house' : 'tent') + ': ' + best.x + ' ' + best.y + ' ' + best.z + ' (' + Math.round(bestD) + ' blocks away)';
+      if (best) return isFossil
+        ? 'Nearest underground fossil: ' + best.x + ' ' + best.y + ' ' + best.z + ' (' + Math.round(bestD) + ' blocks away)'
+        : 'Nearest abandoned ' + (isCastle ? 'castle' : isHouse ? 'house' : 'tent') + ': ' + best.x + ' ' + best.y + ' ' + best.z + ' (' + Math.round(bestD) + ' blocks away)';
     }
-    return 'No abandoned ' + (isCastle ? 'castle' : isHouse ? 'house' : 'tent') + ' found within ' + (maxRing * CS) + ' blocks';
+    return isFossil
+      ? 'No fossil found within ' + (maxRing * CS) + ' blocks'
+      : 'No abandoned ' + (isCastle ? 'castle' : isHouse ? 'house' : 'tent') + ' found within ' + (maxRing * CS) + ' blocks';
   },
   seed: () => 'Seed ' + seed
 };
