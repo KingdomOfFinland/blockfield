@@ -3060,7 +3060,7 @@ function updatePlayer(dt) {
     player.vx += (wx * sp - player.vx) * k;
     player.vz += (wz * sp - player.vz) * k;
     player.vy = Math.max(-55, player.vy - 28 * dt);
-    if (keys.Space && player.onGround) { player.vy = 8.6; player.onGround = false; addExhaustion(sprinting ? 0.2 : 0.05); }
+    if (keys.Space && player.onGround) { playSfx('jump', 0); player.vy = 8.6; player.onGround = false; addExhaustion(sprinting ? 0.2 : 0.05); }
   }
   const ox = player.x, oz = player.z;
   const hitX = moveAxis('x', player.vx * dt); if (hitX) player.vx = 0;
@@ -3276,9 +3276,60 @@ function supportCheck(x, y, z, quiet) {
     y++; id = getBlock(x, y, z);
   }
 }
+/* ---- procedural sound engine: all effects are synthesized locally with Web Audio ---- */
+let soundCtx = null, soundNoise = null;
+function soundContext() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC || SENS.sound <= 0) return null;
+  try {
+    if (!soundCtx) {
+      soundCtx = new AC();
+      soundNoise = soundCtx.createBuffer(1, Math.floor(soundCtx.sampleRate * 0.22), soundCtx.sampleRate);
+      const data = soundNoise.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length * 0.25);
+    }
+    if (soundCtx.state === 'suspended') soundCtx.resume();
+    return soundCtx;
+  } catch (e) { return null; }
+}
+function playSfx(kind, id) {
+  const ctx = soundContext();
+  if (!ctx) return;
+  const now = ctx.currentTime, master = Math.max(0, Math.min(1, SENS.sound));
+  const wood = [5, 6, 7, 8, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 205, 208, 209, 210, 211, 231, 232].includes(id);
+  const soft = [2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 36, 37, 38, 39, 40, 87, 98, 99, 202].includes(id);
+  let freq = wood ? 185 : (soft ? 420 : 115), duration = 0.11, noiseLevel = 0.22, toneLevel = 0.12;
+  if (kind === 'step') { freq = wood ? 125 : (soft ? 240 : 92); duration = 0.085; noiseLevel = 0.12; toneLevel = 0.08; }
+  else if (kind === 'splash') { freq = 520; duration = 0.16; noiseLevel = 0.34; toneLevel = 0.035; }
+  else if (kind === 'jump') { freq = 260; duration = 0.13; noiseLevel = 0.025; toneLevel = 0.12; }
+  else if (kind === 'place') { freq = wood ? 230 : (soft ? 510 : 145); duration = 0.09; noiseLevel = 0.14; toneLevel = 0.10; }
+  else if (kind === 'break') { freq = wood ? 155 : (soft ? 360 : 95); duration = 0.14; noiseLevel = 0.3; toneLevel = 0.08; }
+  else if (kind === 'click') { freq = 620; duration = 0.055; noiseLevel = 0.035; toneLevel = 0.09; }
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(Math.max(0.0001, master * (kind === 'step' ? 0.32 : 0.48)), now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  gain.connect(ctx.destination);
+  if (toneLevel > 0) {
+    const osc = ctx.createOscillator(), og = ctx.createGain();
+    osc.type = kind === 'step' || kind === 'break' ? 'triangle' : 'sine';
+    osc.frequency.setValueAtTime(freq * (0.88 + Math.random() * 0.24), now);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(35, freq * 0.55), now + duration);
+    og.gain.setValueAtTime(toneLevel, now); og.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    osc.connect(og); og.connect(gain); osc.start(now); osc.stop(now + duration);
+  }
+  if (noiseLevel > 0 && soundNoise) {
+    const src = ctx.createBufferSource(), ng = ctx.createGain(), filter = ctx.createBiquadFilter();
+    src.buffer = soundNoise; filter.type = 'lowpass'; filter.frequency.value = kind === 'splash' ? 2400 : (wood ? 1100 : 1800);
+    ng.gain.setValueAtTime(noiseLevel, now); ng.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    src.connect(filter); filter.connect(ng); ng.connect(gain); src.start(now); src.stop(now + duration);
+  }
+}
+let stepDistance = 0;
+/* -------------------------------------------------------------------------- */
 function breakBlock(x, y, z) {
   const old = getBlock(x, y, z);
   if (!old || old === 18) return;
+  playSfx('break', old);
   setBlock(x, y, z, 0);
   if (old === 212 || old === 21) killPortal(x, y, z);
   if (old === 212) return;
@@ -3474,6 +3525,7 @@ function act(btn, first) {
         setBlock(bx, by + 1, bz, 209, rf);
       }
       setBlock(bx, by, bz, id, rf);
+      playSfx('place', id);
       if (id >= 41 && id <= 44) getFurnace(bx, by, bz, true);
       if (!creative) { st.n--; if (st.n <= 0) slots[sel] = null; invChanged(); }
     }
@@ -3925,7 +3977,7 @@ window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; h
 
 /* ---- settings: look speed, field of view, view distance, render scale (saved on this device) ---- */
 const PHONE = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
-const SENS = { look: 1, fov: 75, dist: R, res: PHONE ? 1 : 1.5, cap: PHONE ? 30 : 60, diff: 0 };   /* cap = most frames per second (fewer frames, cooler phone) */
+const SENS = { look: 1, fov: 75, dist: R, res: PHONE ? 1 : 1.5, cap: PHONE ? 30 : 60, diff: 0, sound: 0.7 };   /* cap = most frames per second (fewer frames, cooler phone) */
 const SET_KEY = 'blockfield-settings';
 let setStored = false;
 try { const o = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (o) { setStored = true; for (const k in SENS) if (Number.isFinite(o[k])) SENS[k] = o[k]; } } catch (e) {}
@@ -3944,7 +3996,7 @@ if (setStored) applySettings();
   card.style.cssText = 'max-width:460px;margin:0 auto;background:#222;border-radius:12px;padding:12px 16px;';
   card.innerHTML = '<h2 style="margin:0 0 6px;font-size:18px">Settings</h2>';
   const ctl = [];
-  [['look', 'Look speed', 0.4, 3, 0.1, 'x'], ['fov', 'Field of view', 50, 110, 1, ' deg'], ['dist', 'View distance', 2, 9, 1, ' chunks'], ['res', 'Render scale', 0.5, 2, 0.25, 'x'], ['cap', 'Max FPS', 20, 120, 10, ' fps'], ['diff', 'Difficulty (0 normal, 1 hard)', 0, 1, 1, '']].forEach((r) => {
+  [['look', 'Look speed', 0.4, 3, 0.1, 'x'], ['fov', 'Field of view', 50, 110, 1, ' deg'], ['dist', 'View distance', 2, 9, 1, ' chunks'], ['res', 'Render scale', 0.5, 2, 0.25, 'x'], ['cap', 'Max FPS', 20, 120, 10, ' fps'], ['diff', 'Difficulty (0 normal, 1 hard)', 0, 1, 1, ''], ['sound', 'Sound volume', 0, 1, 0.1, '']].forEach((r) => {
     const row = document.createElement('label'); row.style.cssText = 'display:block;margin:6px 0;';
     const val = document.createElement('span'), inp = document.createElement('input');
     inp.type = 'range'; inp.min = r[2]; inp.max = r[3]; inp.step = r[4]; inp.style.cssText = 'width:100%;';
@@ -5342,7 +5394,19 @@ function frame(now) {
     if (keys.ArrowLeft) yaw += 1.8 * dt; if (keys.ArrowRight) yaw -= 1.8 * dt;
     if (keys.ArrowUp) pitch = Math.min(1.5, pitch + 1.8 * dt);
     if (keys.ArrowDown) pitch = Math.max(-1.5, pitch - 1.8 * dt);
+    const stepX = player.x, stepZ = player.z;
     updatePlayer(dt);
+    const walked = Math.hypot(player.x - stepX, player.z - stepZ);
+    if (player.onGround && !player.fly && walked > 0.001 && !inLava) {
+      stepDistance += walked;
+      const wetStep = inWater || headWater;
+      const interval = sprinting ? 1.25 : 1.7;
+      if (stepDistance >= interval) {
+        const floorId = getBlock(Math.floor(player.x), Math.floor(player.y - 0.08), Math.floor(player.z));
+        playSfx(wetStep ? 'splash' : 'step', floorId);
+        stepDistance = 0;
+      }
+    } else if (!player.onGround) stepDistance = 0;
     if (Math.abs(player.x) > 2147483646 || Math.abs(player.z) > 2147483646) {   /* world border at the 32-bit limit */
       player.x = Math.max(-2147483646, Math.min(2147483646, player.x)); player.z = Math.max(-2147483646, Math.min(2147483646, player.z));
       player.vx = player.vz = 0; showHint('World border', 800);
