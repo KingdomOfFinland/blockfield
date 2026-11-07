@@ -398,6 +398,7 @@ const DEFS = [
   , mk(173, 173, 173), mk(174, 174, 174), mk(175, 175, 175), mk(176, 176, 176), mk(177, 177, 177)   /* 93 bush, 94 dandelion, 95 poppy, 96 cornflower, 97 pink tulip */
   , mk(178, 178, 178), mk(179, 179, 179)   /* 98 seagrass, 99 kelp */
 ];
+DEFS[237] = mk(232, 232, 232); DEFS[238] = mk(233, 233, 233);
 
 /* second block range (200 up): 200 red mushroom, 201 brown mushroom, 202 sugarcane, 203 allium, 204 oxeye daisy */
 ['Red Mushroom', 'Brown Mushroom', 'Sugarcane', 'Allium', 'Oxeye Daisy'].forEach((nm, i) => {
@@ -467,7 +468,7 @@ function toolOf(st) {
 }
 const toolMax = (id) => (id >= 215 && id <= 230) ? ARM[id].dur : (id >= 155 && id <= 158) ? 750 : (id >= 240 && id <= 243) ? 1200 : id === 159 ? 90 : id === 172 ? 120 : (id >= 146 && id <= 149) ? 32 : (id >= 136 && id <= 139) ? 190 : id === 133 ? 385 : TIERS[isSword(id) ? id - SWORD_BASE : (id - TOOL_BASE) % 4].dur;
 const stackMax = (id) => (isDur(id) || id === 106 || id === 107 || id === 186 || id === 197 || id === 198) ? 1 : (id === 105 ? 16 : STACK);
-const isBlk = (id) => id < 100 || (id >= 200 && !(id >= 215 && id <= 230));   /* blocks live at 0 to 99 and 200 up, items at 100 to 199 */
+const isBlk = (id) => id < 100 || (id >= 200 && !(id >= 215 && id <= 230) && !(id >= 239 && id <= 243));   /* blocks live at 0 to 99 and 200 up, items at 100 to 199 */
 const itemName = (id) => isBlk(id) ? NAMES[id] : ITEM_INFO[id].name;
 const itemTile = (id) => id === 80 ? 126 : isBlk(id) ? DEFS[id].f[0] : ITEM_INFO[id].tile;
 const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 238, 208, 231, 232, 233, 234, 235, 236];
@@ -602,6 +603,11 @@ shaped([[151, 0, 151], [0, 151, 0]], 153, 2);                        /* 3 clay b
 { const M = 154, S = 100;   /* ruby: pickaxe, axe, shovel, sword */
   shaped([[M, M, M], [0, S, 0], [0, S, 0]], 155, 1); shaped([[M, M], [M, S], [0, S]], 156, 1);
   shaped([[M], [S], [S]], 157, 1); shaped([[M], [M], [S]], 158, 1); }
+{ const M = 239, S = 100; /* emerald tools and storage block */
+  shaped([[M,M,M],[0,S,0],[0,S,0]],240,1); shaped([[M,M],[M,S],[0,S]],241,1);
+  shaped([[M],[S],[S]],242,1); shaped([[M],[M],[S]],243,1);
+  shaped([[M,M,M],[M,M,M],[M,M,M]],238,1); shapeless([238],239,9);
+}
 shaped([[102], [100]], 159, 1);                                      /* knife: an iron ingot over a stick */
 shaped([[135], [100]], 159, 1);                                      /* or a copper ingot over a stick */
 shaped([[154, 154, 154], [154, 154, 154], [154, 154, 154]], 83, 1); shapeless([83], 154, 9);   /* ruby block: nine rubies, and back */
