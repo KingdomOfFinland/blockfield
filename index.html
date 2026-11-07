@@ -3967,7 +3967,7 @@ const CMDS = {
       }
       if (best) return 'Nearest abandoned ' + (isCastle ? 'castle' : isHouse ? 'house' : 'tent') + ': ' + best.x + ' ' + best.y + ' ' + best.z + ' (' + Math.round(bestD) + ' blocks away)';
     }
-    return 'No abandoned ' + (isHouse ? 'house' : 'tent') + ' found within ' + (maxRing * CS) + ' blocks';
+    return 'No abandoned ' + (isCastle ? 'castle' : isHouse ? 'house' : 'tent') + ' found within ' + (maxRing * CS) + ' blocks';
   },
   seed: () => 'Seed ' + seed
 };
