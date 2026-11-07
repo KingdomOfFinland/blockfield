@@ -1741,6 +1741,7 @@ window.addEventListener('resize', () => {
 const chunks = new Map();
 const structureChests = new Set(); /* world-generated chests, used to seed loot exactly once */
 const houseChests = new Set(); /* house containers use a richer loot table */
+const castleChests = new Set(); /* castle containers use the rich loot table */
 const key = (cx, cz) => cx + ',' + cz;
 
 /* caves: wide winding tunnels (two noise fields crossing zero) plus big caverns deep down */
@@ -2024,6 +2025,61 @@ function genChunk(cx, cz) {
         houseChests.add(ck);
       }
       if (h + 4 > maxY) maxY = h + 4;
+    }
+  }
+  /* ruined castles: rare, deterministic Overworld structures; one candidate per chunk */
+  if (wid === 'o') {
+    const cx0 = 8, cz0 = 8, wx = cx * CS + cx0, wz = cz * CS + cz0;
+    const h = Math.max(SEA + 1, hts[cx0 + cz0 * 16]);
+    const appears = hash2(wx + 4211, wz + 7331) < (1 / 512) && h + 9 < H;
+    if (appears) {
+      const floorY = h + 1;
+      for (let z = 2; z <= 13; z++) for (let x = 2; x <= 13; x++)
+        data[x + (z << 4) + (h << 8)] = 12;
+      for (let p = 3; p <= 12; p++) {
+        const heights = [
+          1 + ((hash2(wx + p * 17, wz + 101) * 3) | 0),
+          1 + ((hash2(wx + p * 19, wz + 203) * 3) | 0),
+          1 + ((hash2(wx + 307, wz + p * 23) * 3) | 0),
+          1 + ((hash2(wx + 409, wz + p * 29) * 3) | 0)
+        ];
+        for (let dy = 1; dy <= heights[0]; dy++) data[p + (2 << 4) + ((h + dy) << 8)] = 12;
+        for (let dy = 1; dy <= heights[1]; dy++) data[p + (13 << 4) + ((h + dy) << 8)] = 12;
+        for (let dy = 1; dy <= heights[2]; dy++) data[2 + (p << 4) + ((h + dy) << 8)] = 12;
+        for (let dy = 1; dy <= heights[3]; dy++) data[13 + (p << 4) + ((h + dy) << 8)] = 12;
+      }
+      /* four ruined corner towers */
+      for (const t of [[2,2],[11,2],[2,11],[11,11]]) {
+        const tx = t[0], tz = t[1], th = 5 + ((hash2(wx + tx * 31, wz + tz * 37) * 4) | 0);
+        for (let dy = 1; dy <= th; dy++)
+          for (let z = tz; z <= tz + 2; z++) for (let x = tx; x <= tx + 2; x++)
+            if (x === tx || x === tx + 2 || z === tz || z === tz + 2)
+              data[x + (z << 4) + ((h + dy) << 8)] = 12;
+        for (let z = tz; z <= tz + 2; z++) for (let x = tx; x <= tx + 2; x++)
+          if ((x === tx || x === tx + 2 || z === tz || z === tz + 2) &&
+              hash2(wx + x * 13, wz + z * 17) > 0.22)
+            data[x + (z << 4) + ((h + th + 1) << 8)] = 4;
+      }
+      /* roofless central keep with a broken doorway */
+      for (let z = 6; z <= 10; z++) for (let x = 6; x <= 10; x++) {
+        if (x === 6 || x === 10 || z === 6 || z === 10) {
+          const wallH = 2 + ((hash2(wx + x * 41, wz + z * 43) * 4) | 0);
+          for (let dy = 1; dy <= wallH; dy++)
+            if (!(z === 10 && x === 8 && dy <= 2))
+              data[x + (z << 4) + ((h + dy) << 8)] = 12;
+        }
+      }
+      /* two valuable chests in the keep */
+      for (const p of [[7,8],[9,8]]) {
+        const chestX = wx + (p[0] - cx0), chestZ = wz + (p[1] - cz0), chestY = floorY;
+        data[p[0] + (p[1] << 4) + (chestY << 8)] = 206;
+        const ck = chestX + ',' + chestY + ',' + chestZ;
+        structureChests.add(ck);
+        castleChests.add(ck);
+      }
+      for (const p of [[5,5],[10,5],[5,10],[10,10],[7,11],[9,11]])
+        data[p[0] + (p[1] << 4) + (floorY << 8)] = 4;
+      if (h + 9 > maxY) maxY = h + 9;
     }
   }
   /* abandoned tents: one deterministic candidate per chunk, strongly biased toward forests */
@@ -3062,7 +3118,7 @@ function getChest(x, y, z) {
     c = new Array(27).fill(null);
     if (structureChests.has(k)) {
       const rnd = mulberry32(Math.imul(x, 73856093) ^ Math.imul(z, 19349663) ^ Math.imul(y, 83492791) ^ Math.imul(seed, 2654435761));
-      const rich = houseChests.has(k);
+      const rich = houseChests.has(k) || castleChests.has(k);
       const pool = rich
         ? [101, 102, 103, 108, 109, 134, 135, 144, 145, 154, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 128, 129, 132, 133, 140, 150, 155, 156, 157, 158, 160, 162, 165, 168, 170, 175, 178, 183, 188, 190, 192]
         : [160, 161, 162, 172, 173, 176, 184, 187, 191, 192, 140, 131, 132];
@@ -3870,7 +3926,7 @@ function findItem(q) {
 }
 const CMD_TIME = { day: 0.1, noon: 0.25, sunset: 0.45, night: 0.6, midnight: 0.75 };
 const CMDS = {
-  help: () => 'help, gamemode creative|survival, time day|noon|sunset|night|midnight, tp x y z, locate [tent|house], give <item> [amount], summon <mob>, kill [all], heal, difficulty normal|hard, seed',
+  help: () => 'help, gamemode creative|survival, time day|noon|sunset|night|midnight, tp x y z, locate [tent|house|castle], give <item> [amount], summon <mob>, kill [all], heal, difficulty normal|hard, seed',
   gamemode: (a) => { const c = /^c/.test(a[1] || ''), s = /^s/.test(a[1] || ''); if (!c && !s) return 'Usage: gamemode creative|survival'; setMode(c); return 'Game mode: ' + (c ? 'creative' : 'survival'); },
   time: (a) => { const v = CMD_TIME[a[a.length - 1]]; if (v === undefined) return 'Usage: time day|noon|sunset|night|midnight'; worldTime = Math.floor(worldTime / DAY_LEN) * DAY_LEN + DAY_LEN * v; return 'Time ' + clockStr(); },
   tp: (a) => { const n = a.slice(1, 4).map(Number); if (n.length < 3 || n.some(isNaN)) return 'Usage: tp x y z'; player.x = n[0]; player.y = Math.max(1, Math.min(H - 2, n[1])); player.z = n[2]; player.vx = player.vy = player.vz = 0; fallPeak = player.y; return 'Teleported'; },
@@ -3881,8 +3937,9 @@ const CMDS = {
   difficulty: (a) => { const v = a[1] === 'hard' || a[1] === '1' ? 1 : (a[1] === 'normal' || a[1] === '0' ? 0 : -1); if (v < 0) return 'Usage: difficulty normal|hard'; SENS.diff = v; applySettings(); return 'Difficulty: ' + (v ? 'hard' : 'normal'); },
   locate: (a) => {
     const what = (a[1] || 'tent').toLowerCase();
-    if (!['tent', 'tents', 'house', 'houses'].includes(what)) return 'Usage: locate [tent|house]';
+    if (!['tent', 'tents', 'house', 'houses', 'castle', 'castles'].includes(what)) return 'Usage: locate [tent|house|castle]';
     if (wid !== 'o') return 'Locate currently works in the Overworld';
+    const isCastle = what === 'castle' || what === 'castles';
     const isHouse = what === 'house' || what === 'houses';
     const pcx = Math.floor(player.x / CS), pcz = Math.floor(player.z / CS);
     const maxRing = 32;
@@ -3892,7 +3949,7 @@ const CMDS = {
         if (Math.max(Math.abs(dx), Math.abs(dz)) !== ring) continue;
         const cx = pcx + dx, cz = pcz + dz, ck = key(cx, cz);
         const c = chunks.get(ck) || genChunk(cx, cz);
-        const spots = isHouse ? [[7, 7], [9, 7]] : [[8, 11]];
+        const spots = isCastle ? [[7, 8], [9, 8]] : isHouse ? [[7, 7], [9, 7]] : [[8, 11]];
         let found = null;
         for (const p of spots) {
           for (let y = 1; y < H; y++) {
@@ -3908,7 +3965,7 @@ const CMDS = {
           if (d < bestD) { bestD = d; best = found; }
         }
       }
-      if (best) return 'Nearest abandoned ' + (isHouse ? 'house' : 'tent') + ': ' + best.x + ' ' + best.y + ' ' + best.z + ' (' + Math.round(bestD) + ' blocks away)';
+      if (best) return 'Nearest abandoned ' + (isCastle ? 'castle' : isHouse ? 'house' : 'tent') + ': ' + best.x + ' ' + best.y + ' ' + best.z + ' (' + Math.round(bestD) + ' blocks away)';
     }
     return 'No abandoned ' + (isHouse ? 'house' : 'tent') + ' found within ' + (maxRing * CS) + ' blocks';
   },
