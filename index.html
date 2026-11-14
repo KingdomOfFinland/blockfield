@@ -316,7 +316,7 @@ if (typeof THREE === 'undefined') {
 }
 
 /* ---------------------------------------------------------------- constants */
-const CS = 16, H = 64, NT = 239, TS = 16, EPS = 0.0008, LEAVES = 7;
+const CS = 16, H = 64, NT = 244, TS = 16, EPS = 0.0008, LEAVES = 7;
 const HOT = 10, INV = 30, TOTAL = HOT + INV, STACK = 64;
 const WATER = 19, LAVA = 20, OBSIDIAN = 21, SNOW = 22, ICE = 23, SEA = 20, LAVA_Y = 6, GEN = 3, CACTUS = 34, BUSH = 35;
 const isFluid = (id) => id === WATER || id === LAVA;
@@ -340,6 +340,7 @@ const NAMES = ['Air', 'Grass', 'Dirt', 'Stone', 'Cobblestone', 'Planks', 'Log', 
   'Acacia Log', 'Acacia Log', 'Acacia Log', 'Acacia Planks', 'Acacia Leaves', 'Savanna Grass', 'Copper Ore', 'Copper Block', 'Exposed Copper', 'Weathered Copper', 'Oxidized Copper',
   'Copper Wire', 'Lamp', 'Lamp', 'Lever', 'Lever', 'Button', 'Button', 'Pressure Plate', 'Pressure Plate', 'Battery', 'Copper Gate', 'Copper Gate', 'Repeater', 'Repeater', 'Gold Ore', 'Gold Block', 'Coal Block', 'Iron Block', 'Diamond Block', 'Anvil', 'Clay', 'Ruby Ore', 'Ruby Block', 'Tomato Plant', 'Lettuce', 'Carrot Plant', 'Farmland', 'Tomato Seedling', 'Lettuce Seedling', 'Carrot Seedling', 'Wheat Plant', 'Wheat Seedling', 'Bush', 'Dandelion', 'Poppy', 'Cornflower', 'Pink Tulip', 'Seagrass', 'Kelp'];
 NAMES[237] = 'Emerald Ore'; NAMES[238] = 'Emerald Block';
+NAMES[244] = 'Steel Ore'; NAMES[245] = 'Steel Block'; NAMES[246] = 'Lightly Rusted Steel'; NAMES[247] = 'Rusted Steel'; NAMES[248] = 'Heavily Rusted Steel';
 const TRANSP = [0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
@@ -399,6 +400,7 @@ const DEFS = [
   , mk(178, 178, 178), mk(179, 179, 179)   /* 98 seagrass, 99 kelp */
 ];
 DEFS[237] = mk(232, 232, 232); DEFS[238] = mk(233, 233, 233);
+DEFS[244] = mk(239, 239, 239); DEFS[245] = mk(240, 240, 240); DEFS[246] = mk(241, 241, 241); DEFS[247] = mk(242, 242, 242); DEFS[248] = mk(243, 243, 243);
 
 /* second block range (200 up): 200 red mushroom, 201 brown mushroom, 202 sugarcane, 203 allium, 204 oxeye daisy */
 ['Red Mushroom', 'Brown Mushroom', 'Sugarcane', 'Allium', 'Oxeye Daisy'].forEach((nm, i) => {
@@ -445,7 +447,7 @@ ITEM_INFO[130] = { name: 'Rotten Flesh', tile: 75 }; ITEM_INFO[131] = { name: 'B
 ['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[146 + i] = { name: 'Golden ' + nm, tile: 118 + i }; }); ITEM_INFO[142] = { name: 'Rock', tile: 112 }; ITEM_INFO[143] = { name: 'Packed Snowball', tile: 113 };
 ITEM_INFO[151] = { name: 'Clay Ball', tile: 129 }; ITEM_INFO[152] = { name: 'Brick', tile: 130 }; ITEM_INFO[153] = { name: 'Clay Bowl', tile: 131 };
 ITEM_INFO[154] = { name: 'Ruby', tile: 133 }; ITEM_INFO[159] = { name: 'Knife', tile: 138 };
-ITEM_INFO[239] = { name: 'Emerald', tile: 234 };
+ITEM_INFO[239] = { name: 'Emerald', tile: 234 }; ITEM_INFO[249] = { name: 'Raw Steel', tile: 22 }; ITEM_INFO[250] = { name: 'Steel Ingot', tile: 22 };
 ['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[240 + i] = { name: 'Emerald ' + nm, tile: 235 + i }; });
 [['Tomato', 143], ['Lettuce', 144], ['Carrot', 145], ['Sliced Tomato', 146], ['Sliced Lettuce', 147], ['Sliced Carrot', 148], ['Tomato Salad', 149], ['Carrot Salad', 150], ['Garden Salad', 151], ['Raw Chicken', 152], ['Cooked Chicken', 153], ['Feather', 154]].forEach((e, i) => { ITEM_INFO[160 + i] = { name: e[0], tile: e[1] }; });
 [['Hoe', 159], ['Egg', 160], ['Fried Egg', 161], ['Veggie Pie', 162]].forEach((e, i) => { ITEM_INFO[172 + i] = { name: e[0], tile: e[1] }; });
@@ -468,15 +470,15 @@ function toolOf(st) {
 }
 const toolMax = (id) => (id >= 215 && id <= 230) ? ARM[id].dur : (id >= 155 && id <= 158) ? 750 : (id >= 240 && id <= 243) ? 1200 : id === 159 ? 90 : id === 172 ? 120 : (id >= 146 && id <= 149) ? 32 : (id >= 136 && id <= 139) ? 190 : id === 133 ? 385 : TIERS[isSword(id) ? id - SWORD_BASE : (id - TOOL_BASE) % 4].dur;
 const stackMax = (id) => (isDur(id) || id === 106 || id === 107 || id === 186 || id === 197 || id === 198) ? 1 : (id === 105 ? 16 : STACK);
-const isBlk = (id) => id < 100 || (id >= 200 && !(id >= 215 && id <= 230) && !(id >= 239 && id <= 243));   /* blocks live at 0 to 99 and 200 to 238; emerald items use 239 to 243 */
+const isBlk = (id) => id < 100 || (id >= 200 && !(id >= 215 && id <= 230) && !(id >= 239 && id <= 243) || (id >= 244 && id <= 250));   /* blocks live at 0 to 99 and 200 to 238; emerald items use 239 to 243 */
 const itemName = (id) => isBlk(id) ? NAMES[id] : ITEM_INFO[id].name;
 const itemTile = (id) => id === 80 ? 126 : isBlk(id) ? DEFS[id].f[0] : ITEM_INFO[id].tile;
-const PLACEABLE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 237, 238, 208, 231, 232, 233, 234, 235, 236];
+const PLACEABLE = [244, 245, 246, 247, 248, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 237, 238, 208, 231, 232, 233, 234, 235, 236];
 const PALETTE = PLACEABLE.concat([100, 101, 102, 103, 104, 105, 106, 107, 108, 109]);
 for (let i = 0; i < 12; i++) PALETTE.push(TOOL_BASE + i);
 for (let i = 0; i < 4; i++) PALETTE.push(SWORD_BASE + i);
 [126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185].forEach((id) => PALETTE.push(id));
-[239, 240, 241, 242, 243].forEach((id) => PALETTE.push(id));
+[239, 240, 241, 242, 243, 249, 250].forEach((id) => PALETTE.push(id));
 const validItem = (id) => Number.isInteger(id) && (PLACEABLE.indexOf(id) >= 0 || (id >= 100 && id <= 109) || isDur(id) || (id >= 126 && id <= 135) || id === 140 || (id >= 141 && id <= 145) || id === 150 || (id >= 151 && id <= 154) || (id >= 160 && id <= 199) || (id >= 215 && id <= 230) || (id >= 239 && id <= 243));
 function makeStack(id, n) { const s = { id: id, n: n }; if (isDur(id)) s.d = toolMax(id); return s; }
 /* food restores hunger points (20 = full bar) and saturation */
@@ -502,7 +504,7 @@ bi(32, 0.2, null, -1); bi(33, 0.2, null, -1); bi(34, 0.4, null, -1); bi(35, 0, n
 bi(36, 0, null, -1); bi(41, 3.5, 'pick', 0); bi(49, 0.6, 'shovel', -1);
 bi(50, 2, 'axe', -1); bi(51, 2, 'axe', -1); bi(52, 2, 'axe', -1); bi(53, 2, 'axe', -1); bi(54, 0.2, null, -1); bi(55, 0.6, 'shovel', -1); bi(56, 3, 'pick', 1); bi(57, 3, 'pick', 0); bi(58, 3, 'pick', 0); bi(59, 3, 'pick', 0); bi(60, 3, 'pick', 0);
 for (let i = 200; i <= 204; i++) bi(i, 0, null, -1);
-bi(205, 0.3, null, -1); bi(231, 0.8, null, -1); bi(232, 2, 'axe', -1); bi(233, 1.2, 'pick', -1); bi(234, 1.5, 'pick', 0); bi(235, 1.2, 'pick', 0); bi(236, 1.2, 'pick', 0); bi(237, 3, 'pick', 3); bi(238, 5, 'pick', 3); bi(212, 0, null, -1); bi(213, 0.4, 'pick', -1); bi(214, 0.3, null, -1); bi(206, 2.5, 'axe', -1); bi(207, 0, null, -1); bi(208, 3, 'axe', -1);
+bi(205, 0.3, null, -1); bi(231, 0.8, null, -1); bi(232, 2, 'axe', -1); bi(233, 1.2, 'pick', -1); bi(234, 1.5, 'pick', 0); bi(235, 1.2, 'pick', 0); bi(236, 1.2, 'pick', 0); bi(237, 3, 'pick', 3); bi(238, 5, 'pick', 3); bi(244, 3, 'pick', 1); bi(245, 5, 'pick', 1); bi(246, 5, 'pick', 1); bi(247, 5, 'pick', 1); bi(248, 5, 'pick', 1); bi(212, 0, null, -1); bi(213, 0.4, 'pick', -1); bi(214, 0.3, null, -1); bi(206, 2.5, 'axe', -1); bi(207, 0, null, -1); bi(208, 3, 'axe', -1);
 bi(61, 0, null, -1); bi(62, 0.5, null, -1); bi(64, 0.5, null, -1); bi(66, 0.5, null, -1); bi(68, 0.5, null, -1); bi(70, 3, 'pick', 0); bi(71, 3, 'pick', 0); bi(73, 0.3, null, -1); bi(75, 3, 'pick', 2); bi(76, 3, 'pick', 1); bi(77, 5, 'pick', 0); bi(80, 5, 'pick', 0); bi(78, 5, 'pick', 1); bi(79, 5, 'pick', 2); bi(81, 0.6, 'shovel', -1); bi(82, 3, 'pick', 2); bi(83, 5, 'pick', 2); bi(84, 0, null, -1); bi(85, 0, null, -1); bi(86, 0, null, -1); bi(87, 0.6, 'shovel', -1); bi(88, 0, null, -1); bi(89, 0, null, -1); bi(90, 0, null, -1); bi(91, 0, null, -1); bi(92, 0, null, -1); bi(93, 0, null, -1); bi(94, 0, null, -1); bi(95, 0, null, -1); bi(96, 0, null, -1); bi(97, 0, null, -1); bi(98, 0, null, -1); bi(99, 0, null, -1);
 const binfo = (id) => BINFO[canon(id)];
 /* what a block turns into when you mine it (no furnace yet, so iron ore gives ingots) */
@@ -521,6 +523,8 @@ function dropOf(id) {
   if (id === 75) return 144;
   if (id === 82) return 154;
   if (id === 237) return 239;
+  if (id === 244) return 249;
+  if (id >= 245 && id <= 248) return 245;
   if (id >= 84 && id <= 86) return 160 + id - 84;   /* a plant gives the whole vegetable */
   if (id >= 88 && id <= 90) return 160 + id - 88;   /* a seedling gives its vegetable back */
   if (id === 87) return 2;   /* farmland turns back into dirt */
@@ -546,7 +550,8 @@ function breakTime(id, st) {
 const RECIPES = [];
 function shaped(rows, out, n) { RECIPES.push({ rows: rows, out: out, n: n || 1 }); }
 function shapeless(list, out, n) { RECIPES.push({ list: list.slice().sort((a, b) => a - b), out: out, n: n || 1 }); }
-shapeless([6], 5, 4);                  /* log -> 4 planks */
+shapeless([6], 5, 4);
+shaped([[250, 250, 250], [250, 250, 250], [250, 250, 250]], 245, 1); /* steel block */                  /* log -> 4 planks */
 shaped([[5], [5]], 100, 4);            /* 2 planks -> 4 sticks */
 shaped([[5, 5], [5, 5]], 17, 1);       /* 4 planks -> crafting table */
 shaped([[171, 171, 171], [5, 5, 5]], 205, 1);   /* bed: 3 feathers over 3 planks */
@@ -1684,6 +1689,25 @@ for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
   const v = bone ? 224 + grain : 105 + grain;
   px(231, x, y, v + 5, v, v - 17);
 }
+/* steel textures: ore, clean steel, and three rust stages */
+for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+  const noise = ((x * 17 + y * 31) % 13) - 6;
+  px(239, x, y, 78 + noise, 82 + noise, 88 + noise);
+  px(240, x, y, 142 + noise, 150 + noise, 158 + noise);
+  px(241, x, y, 142 + noise, 112 + noise, 91 + noise);
+  px(242, x, y, 130 + noise, 83 + noise, 58 + noise);
+  px(243, x, y, 91 + noise, 58 + noise, 43 + noise);
+}
+for (let i = 0; i < 34; i++) {
+  const x = (i * 7 + 3) % 16, y = (i * 11 + 5) % 16;
+  px(239, x, y, 178 + (i % 4) * 8, 184 + (i % 4) * 7, 190 + (i % 4) * 6);
+}
+for (let i = 0; i < 48; i++) {
+  const x = (i * 5 + 1) % 16, y = (i * 9 + 2) % 16;
+  if (i % 3 === 0) px(241, x, y, 174, 91, 55);
+  if (i % 2 === 0) px(242, x, y, 157, 75, 43);
+  px(243, x, y, 112, 61, 43);
+}
 const tex = new THREE.CanvasTexture(atlas);
 tex.magFilter = THREE.NearestFilter;
 tex.minFilter = THREE.NearestFilter;
@@ -1816,7 +1840,7 @@ function caveAt(wx, y, wz, h) {
   return depth > 10 && y < 45 && perlin3(wx * 0.014 + 9.1, y * 0.026, wz * 0.014 + 4.4) > 0.52;
 }
 /* ore veins: id, tries per chunk, vein size, lowest y, highest y */
-const OREGEN = [[14, 18, 6, 1, 52], [15, 12, 4, 1, 36], [16, 2, 3, 1, 14], [56, 13, 5, 1, 44], [75, 4, 4, 1, 22]];
+const OREGEN = [[244, 8, 4, 1, 30], [14, 18, 6, 1, 52], [15, 12, 4, 1, 36], [16, 2, 3, 1, 14], [56, 13, 5, 1, 44], [75, 4, 4, 1, 22]];
 function oreBlob(data, rnd, id, x, y, z, size) {
   for (let i = 0; i < size; i++) {
     if (x >= 0 && x < 16 && z >= 0 && z < 16 && y >= 1 && y < H) {
@@ -3116,7 +3140,7 @@ function intersectsPlayer(bx, by, bz) {
 const mine = { x: 0, y: 0, z: 0, t: 0, active: false };
 let mineCool = 0;
 /* furnaces: each one keeps its own input, fuel, output and timers */
-const SMELT = { 184: [185, 1], 179: [180, 2], 182: [183, 1], 173: [174, 1], 169: [170, 1], 151: [152, 1], 144: [145, 1], 134: [135, 1], 126: [128, 1], 127: [129, 1], 108: [102, 1], 8: [9, 1], 4: [3, 1], 6: [109, 1], 24: [109, 1], 27: [109, 1], 50: [109, 1] };   /* item -> [result, count] */
+const SMELT = { 249: [250, 1], 184: [185, 1], 179: [180, 2], 182: [183, 1], 173: [174, 1], 169: [170, 1], 151: [152, 1], 144: [145, 1], 134: [135, 1], 126: [128, 1], 127: [129, 1], 108: [102, 1], 8: [9, 1], 4: [3, 1], 6: [109, 1], 24: [109, 1], 27: [109, 1], 50: [109, 1] };   /* item -> [result, count] */
 const FUEL = { 101: 80, 109: 80, 100: 5, 5: 15, 30: 15, 31: 15, 6: 15, 24: 15, 27: 15, 50: 15, 53: 15, 77: 800 };          /* item -> seconds of burning */
 const COOK_TIME = 10;
 /* crops: a planted seedling grows into a full plant after a while */
@@ -4112,7 +4136,7 @@ function closeCmd() {
 function findItem(q) {
   q = q.toLowerCase().replace(/ /g, '_'); if (/^\d+$/.test(q)) return +q;
   let best = 0;
-  for (let id = 1; id <= 211; id++) {
+  for (let id = 1; id <= 250; id++) {
     if (!validItem(id)) continue;
     let nm; try { nm = itemName(id); } catch (e) { continue; }
     if (!nm) continue; nm = nm.toLowerCase().replace(/ /g, '_');
@@ -5081,7 +5105,7 @@ function mobStep(dt) {
 }
 
 /* ---- copper weathering: copper block, exposed, weathered, oxidized, slowly and only while its chunk is loaded ---- */
-const AGE_NEXT = { 57: 58, 58: 59, 59: 60 }, AGE_PREV = { 58: 57, 59: 58, 60: 59 }, AGE_MEAN = { 57: 240, 58: 360, 59: 480 };   /* average seconds per stage */
+const AGE_NEXT = { 57: 58, 58: 59, 59: 60, 245: 246, 246: 247, 247: 248 }, AGE_PREV = { 58: 57, 59: 58, 60: 59, 246: 245, 247: 246, 248: 247 }, AGE_MEAN = { 57: 240, 58: 360, 59: 480, 245: 300, 246: 420, 247: 600 };   /* average seconds per stage */
 let ageT = 0;
 function ageStep(dt) {
   ageT += dt;
