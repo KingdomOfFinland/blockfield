@@ -2234,7 +2234,19 @@ function genChunk(cx, cz) {
 }
 function getChunk(cx, cz) {
   const k = key(cx, cz); let c = chunks.get(k);
-  if (!c) { c = genChunk(cx, cz); chunks.set(k, c); }
+  if (!c) {
+    c = genChunk(cx, cz);
+    chunks.set(k, c);
+    /* World generation writes directly into chunk data, so explicitly queue every
+       gravity block. The normal gravity simulation then handles it after loading. */
+    for (let i = 0; i < c.data.length; i++) {
+      const id = c.data[i];
+      if (GRAV[id]) {
+        const y = i >> 8;
+        scheduleGravity(cx * CS + (i & 15), y, cz * CS + ((i >> 4) & 15));
+      }
+    }
+  }
   return c;
 }
 function getBlock(x, y, z) {
