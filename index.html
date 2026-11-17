@@ -3551,6 +3551,46 @@ function toggleDoor(x, y, z) {
 }
 let railLinkStart = null;
 const railLinks = (saved && Array.isArray(saved.railLinks)) ? saved.railLinks.filter((l) => l && l.a && l.b && [l.a.x,l.a.y,l.a.z,l.b.x,l.b.y,l.b.z].every(Number.isFinite)).slice(0, 5000) : [];
+/* linked track is a separate world-space mesh so diagonal connections are not constrained to block faces */
+const railLinkGroup = new THREE.Group();
+scene.add(railLinkGroup);
+const railMetalMat = new THREE.MeshBasicMaterial({ color: 0x9ba5aa });
+const railWoodMat = new THREE.MeshBasicMaterial({ color: 0x65452f });
+const railBeamGeo = new THREE.BoxGeometry(1, 0.075, 0.075);
+const railTieGeo = new THREE.BoxGeometry(0.48, 0.07, 0.12);
+function rebuildRailLinkMeshes() {
+  while (railLinkGroup.children.length) {
+    const child = railLinkGroup.children.pop();
+    railLinkGroup.remove(child);
+  }
+  const axis = new THREE.Vector3(1, 0, 0);
+  for (const link of railLinks) {
+    const a = new THREE.Vector3(link.a.x + 0.5, link.a.y + 0.16, link.a.z + 0.5);
+    const b = new THREE.Vector3(link.b.x + 0.5, link.b.y + 0.16, link.b.z + 0.5);
+    const delta = b.clone().sub(a), length = delta.length();
+    if (length < 0.01) continue;
+    const dir = delta.clone().normalize();
+    const side = new THREE.Vector3(-dir.z, 0, dir.x);
+    if (side.lengthSq() < 0.001) side.set(1, 0, 0); else side.normalize();
+    const quat = new THREE.Quaternion().setFromUnitVectors(axis, dir);
+    for (const offset of [-0.14, 0.14]) {
+      const rail = new THREE.Mesh(railBeamGeo, railMetalMat);
+      rail.position.copy(a).add(b).multiplyScalar(0.5).addScaledVector(side, offset);
+      rail.scale.set(length, 1, 1);
+      rail.quaternion.copy(quat);
+      railLinkGroup.add(rail);
+    }
+    const ties = Math.min(512, Math.max(2, Math.ceil(length / 0.48)));
+    const tieQuat = new THREE.Quaternion().setFromUnitVectors(axis, side);
+    for (let i = 0; i <= ties; i++) {
+      const t = i / ties, tie = new THREE.Mesh(railTieGeo, railWoodMat);
+      tie.position.copy(a).lerp(b, t);
+      tie.quaternion.copy(tieQuat);
+      railLinkGroup.add(tie);
+    }
+  }
+}
+rebuildRailLinkMeshes();
 function useRailWrench(h) {
   if (!h || getBlock(h.x, h.y, h.z) !== 251) { showHint('Select a rail with the wrench', 1200); return; }
   const point = { x: h.x, y: h.y, z: h.z };
@@ -3566,7 +3606,7 @@ function useRailWrench(h) {
     for (let i = 0; i < slots.length && cost > 0; i++) if (slots[i] && slots[i].id === 251) { const take = Math.min(cost, slots[i].n); slots[i].n -= take; cost -= take; if (slots[i].n <= 0) slots[i] = null; }
     invChanged();
   }
-  railLinks.push({ a: a, b: b }); changed = true; save(); showHint('Rail connection created', 1400);
+  railLinks.push({ a: a, b: b }); rebuildRailLinkMeshes(); changed = true; save(); showHint('Rail connection created', 1400);
 }
 function act(btn, first) {
   { const hs = slots[sel]; if (!(btn === 2 && hs && (hs.id === 133 || FOOD[hs.id]))) swingT = 1; }   /* the hand swings */
