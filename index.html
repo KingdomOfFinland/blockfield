@@ -3559,10 +3559,7 @@ const railWoodMat = new THREE.MeshBasicMaterial({ color: 0x65452f });
 const railBeamGeo = new THREE.BoxGeometry(1, 0.075, 0.075);
 const railTieGeo = new THREE.BoxGeometry(0.48, 0.07, 0.12);
 function rebuildRailLinkMeshes() {
-  while (railLinkGroup.children.length) {
-    const child = railLinkGroup.children.pop();
-    railLinkGroup.remove(child);
-  }
+  while (railLinkGroup.children.length) railLinkGroup.remove(railLinkGroup.children[0]);
   const axis = new THREE.Vector3(1, 0, 0);
   for (const link of railLinks) {
     const a = new THREE.Vector3(link.a.x + 0.5, link.a.y + 0.16, link.a.z + 0.5);
