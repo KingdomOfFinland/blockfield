@@ -421,6 +421,7 @@ NAMES[233] = 'Bone Block'; DEFS[233] = mk(228, 228, 228);
 NAMES[234] = 'Fossil Skull'; DEFS[234] = mk(229, 229, 229);
 NAMES[235] = 'Fossil Spine'; DEFS[235] = mk(230, 230, 230);
 NAMES[236] = 'Fossil Limb'; DEFS[236] = mk(231, 231, 231);
+NAMES[251] = 'Rail'; DEFS[251] = mk(240, 240, 240); TRANSP[251] = 1; PASS[251] = 1; FLATB[251] = 1;
 /* items: 100 to 103 are materials, 110 to 121 are tools (type * 4 + tier) */
 const TIERS = [
   { name: 'Wooden',  speed: 2, dur: 59,   mat: 5,   m: [186, 148, 95],  d: [128, 96, 56] },
@@ -456,6 +457,7 @@ ITEM_INFO[239] = { name: 'Emerald', tile: 234 }; ITEM_INFO[249] = { name: 'Raw S
 [['Fishing Rod', 191], ['Raw Fish', 192], ['Cooked Fish', 193], ['Raw Crab', 194], ['Cooked Crab', 195], ['Rice', 196], ['Sushi', 197]].forEach((e, i) => { ITEM_INFO[186 + i] = { name: e[0], tile: e[1] }; });   /* 186 rod, 187/188 fish, 189/190 crab, 191 rice, 192 sushi */
 ['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[155 + i] = { name: 'Ruby ' + nm, tile: 134 + i }; });
 ['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[136 + i] = { name: 'Copper ' + nm, tile: 93 + i }; });
+ITEM_INFO[199] = { name: 'Rail Wrench', tile: 243 };
 const isSword = (id) => (id >= SWORD_BASE && id < SWORD_BASE + 4) || id === 139 || id === 149 || id === 158 || id === 159 || id === 243;   /* 158 ruby sword, 159 knife */
 const isTool = (id) => (id >= TOOL_BASE && id < TOOL_BASE + 12) || (id >= 136 && id <= 138) || (id >= 146 && id <= 148) || (id >= 155 && id <= 157) || (id >= 240 && id <= 242);   /* 146 to 149: golden pickaxe, axe, shovel, sword */   /* 136 to 139 are the copper pickaxe, axe, shovel and sword */
 const isDur = (id) => isTool(id) || isSword(id) || id === 133 || id === 172 || (id >= 215 && id <= 230);
@@ -473,13 +475,13 @@ const stackMax = (id) => (isDur(id) || id === 106 || id === 107 || id === 186 ||
 const isBlk = (id) => id < 100 || (id >= 200 && !(id >= 215 && id <= 230) && !(id >= 239 && id <= 243) && !(id >= 249 && id <= 250));   /* blocks live at 0 to 99 and 200 to 238; emerald items use 239 to 243 */
 const itemName = (id) => isBlk(id) ? NAMES[id] : ITEM_INFO[id].name;
 const itemTile = (id) => id === 80 ? 126 : isBlk(id) ? DEFS[id].f[0] : ITEM_INFO[id].tile;
-const PLACEABLE = [244, 245, 246, 247, 248, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 237, 238, 208, 231, 232, 233, 234, 235, 236];
+const PLACEABLE = [251, 244, 245, 246, 247, 248, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 237, 238, 208, 231, 232, 233, 234, 235, 236];
 const PALETTE = PLACEABLE.concat([100, 101, 102, 103, 104, 105, 106, 107, 108, 109]);
 for (let i = 0; i < 12; i++) PALETTE.push(TOOL_BASE + i);
 for (let i = 0; i < 4; i++) PALETTE.push(SWORD_BASE + i);
 [126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185].forEach((id) => PALETTE.push(id));
-[239, 240, 241, 242, 243, 249, 250].forEach((id) => PALETTE.push(id));
-const validItem = (id) => Number.isInteger(id) && (PLACEABLE.indexOf(id) >= 0 || (id >= 100 && id <= 109) || isDur(id) || (id >= 126 && id <= 135) || id === 140 || (id >= 141 && id <= 145) || id === 150 || (id >= 151 && id <= 154) || (id >= 160 && id <= 199) || (id >= 215 && id <= 230) || (id >= 239 && id <= 243) || (id >= 249 && id <= 250));
+[239, 240, 241, 242, 243, 249, 250, 199].forEach((id) => PALETTE.push(id));
+const validItem = (id) => Number.isInteger(id) && (PLACEABLE.indexOf(id) >= 0 || (id >= 100 && id <= 109) || isDur(id) || (id >= 126 && id <= 135) || id === 140 || (id >= 141 && id <= 145) || id === 150 || (id >= 151 && id <= 154) || (id >= 160 && id <= 199) || (id >= 215 && id <= 230) || (id >= 239 && id <= 243) || (id >= 249 && id <= 250) || id === 199);
 function makeStack(id, n) { const s = { id: id, n: n }; if (isDur(id)) s.d = toolMax(id); return s; }
 /* food restores hunger points (20 = full bar) and saturation */
 const FOOD = { 150: { food: 4, sat: 9.6, heal: 8 }, 104: { food: 4, sat: 2.4 }, 126: { food: 3, sat: 1.8 }, 127: { food: 3, sat: 1.8 }, 128: { food: 8, sat: 12.8 }, 129: { food: 8, sat: 12.8 }, 130: { food: 2, sat: 0.4 },
@@ -504,7 +506,7 @@ bi(32, 0.2, null, -1); bi(33, 0.2, null, -1); bi(34, 0.4, null, -1); bi(35, 0, n
 bi(36, 0, null, -1); bi(41, 3.5, 'pick', 0); bi(49, 0.6, 'shovel', -1);
 bi(50, 2, 'axe', -1); bi(51, 2, 'axe', -1); bi(52, 2, 'axe', -1); bi(53, 2, 'axe', -1); bi(54, 0.2, null, -1); bi(55, 0.6, 'shovel', -1); bi(56, 3, 'pick', 1); bi(57, 3, 'pick', 0); bi(58, 3, 'pick', 0); bi(59, 3, 'pick', 0); bi(60, 3, 'pick', 0);
 for (let i = 200; i <= 204; i++) bi(i, 0, null, -1);
-bi(205, 0.3, null, -1); bi(231, 0.8, null, -1); bi(232, 2, 'axe', -1); bi(233, 1.2, 'pick', -1); bi(234, 1.5, 'pick', 0); bi(235, 1.2, 'pick', 0); bi(236, 1.2, 'pick', 0); bi(237, 3, 'pick', 3); bi(238, 5, 'pick', 3); bi(244, 3, 'pick', 1); bi(245, 5, 'pick', 1); bi(246, 5, 'pick', 1); bi(247, 5, 'pick', 1); bi(248, 5, 'pick', 1); bi(212, 0, null, -1); bi(213, 0.4, 'pick', -1); bi(214, 0.3, null, -1); bi(206, 2.5, 'axe', -1); bi(207, 0, null, -1); bi(208, 3, 'axe', -1);
+bi(205, 0.3, null, -1); bi(251, 0.7, null, -1); bi(231, 0.8, null, -1); bi(232, 2, 'axe', -1); bi(233, 1.2, 'pick', -1); bi(234, 1.5, 'pick', 0); bi(235, 1.2, 'pick', 0); bi(236, 1.2, 'pick', 0); bi(237, 3, 'pick', 3); bi(238, 5, 'pick', 3); bi(244, 3, 'pick', 1); bi(245, 5, 'pick', 1); bi(246, 5, 'pick', 1); bi(247, 5, 'pick', 1); bi(248, 5, 'pick', 1); bi(212, 0, null, -1); bi(213, 0.4, 'pick', -1); bi(214, 0.3, null, -1); bi(206, 2.5, 'axe', -1); bi(207, 0, null, -1); bi(208, 3, 'axe', -1);
 bi(61, 0, null, -1); bi(62, 0.5, null, -1); bi(64, 0.5, null, -1); bi(66, 0.5, null, -1); bi(68, 0.5, null, -1); bi(70, 3, 'pick', 0); bi(71, 3, 'pick', 0); bi(73, 0.3, null, -1); bi(75, 3, 'pick', 2); bi(76, 3, 'pick', 1); bi(77, 5, 'pick', 0); bi(80, 5, 'pick', 0); bi(78, 5, 'pick', 1); bi(79, 5, 'pick', 2); bi(81, 0.6, 'shovel', -1); bi(82, 3, 'pick', 2); bi(83, 5, 'pick', 2); bi(84, 0, null, -1); bi(85, 0, null, -1); bi(86, 0, null, -1); bi(87, 0.6, 'shovel', -1); bi(88, 0, null, -1); bi(89, 0, null, -1); bi(90, 0, null, -1); bi(91, 0, null, -1); bi(92, 0, null, -1); bi(93, 0, null, -1); bi(94, 0, null, -1); bi(95, 0, null, -1); bi(96, 0, null, -1); bi(97, 0, null, -1); bi(98, 0, null, -1); bi(99, 0, null, -1);
 const binfo = (id) => BINFO[canon(id)];
 /* what a block turns into when you mine it (no furnace yet, so iron ore gives ingots) */
@@ -554,7 +556,8 @@ shapeless([6], 5, 4);
 shaped([[250, 250, 250], [250, 250, 250], [250, 250, 250]], 245, 1); /* steel block */                  /* log -> 4 planks */
 shaped([[5], [5]], 100, 4);            /* 2 planks -> 4 sticks */
 shaped([[5, 5], [5, 5]], 17, 1);       /* 4 planks -> crafting table */
-shaped([[171, 171, 171], [5, 5, 5]], 205, 1);   /* bed: 3 feathers over 3 planks */
+shaped([[171, 171, 171], [5, 5, 5]], 205, 1);
+shaped([[102, 100], [100, 102]], 199, 1); /* rail wrench */   /* bed: 3 feathers over 3 planks */
 shaped([[5, 5, 5], [5, 0, 5], [5, 5, 5]], 206, 1);
 shaped([[5, 5], [5, 5], [5, 5]], 208, 3);   /* door: 6 planks make 3 doors */
 shaped([[5, 100, 5], [5, 100, 5]], 232, 3);   /* fence: planks and sticks make 3 fences */
@@ -2697,6 +2700,13 @@ function meshChunk(c) {
     if (!id) continue;
     const def = DEFS[id];
     if (id >= 36 && id <= 40) { pushTorch(gl, x, y, z, id); continue; }
+    if (id === 251) {
+      /* two steel rails on wooden sleepers */
+      for (let t = 0.08; t < 1; t += 0.24) box(x, y, z, 0.06, 0.015, t, 0.94, 0.075, Math.min(1, t + 0.09), 5);
+      box(x, y, z, 0.16, 0.075, 0.04, 0.23, 0.16, 0.96, 240);
+      box(x, y, z, 0.77, 0.075, 0.04, 0.84, 0.16, 0.96, 240);
+      continue;
+    }
     if (id === 61) {
       /* copper wire: a flat trace that reaches toward connected wires and devices, dimmer the less power it carries */
       const lvl = getFl(x, y, z), shade = lvl > 0 ? 0.5 + 0.5 * lvl / 15 : 0.28, t0 = def.f[0], yy = y + 0.02;
@@ -3538,10 +3548,30 @@ function toggleDoor(x, y, z) {
   if (nb === 208 && (intersectsPlayer(x, by, z) || intersectsPlayer(x, by + 1, z))) return;   /* never shut a door on yourself */
   setBlock(x, by, z, nb, f); setBlock(x, by + 1, z, nb + 1, f);
 }
+let railLinkStart = null;
+const railLinks = (saved && Array.isArray(saved.railLinks)) ? saved.railLinks.filter((l) => l && l.a && l.b && [l.a.x,l.a.y,l.a.z,l.b.x,l.b.y,l.b.z].every(Number.isFinite)).slice(0, 5000) : [];
+function useRailWrench(h) {
+  if (!h || getBlock(h.x, h.y, h.z) !== 251) { showHint('Select a rail with the wrench', 1200); return; }
+  const point = { x: h.x, y: h.y, z: h.z };
+  if (!railLinkStart) { railLinkStart = point; showHint('First rail selected — click the second rail', 1800); return; }
+  const a = railLinkStart, b = point; railLinkStart = null;
+  if (a.x === b.x && a.y === b.y && a.z === b.z) { showHint('Choose a different rail', 1200); return; }
+  const exists = railLinks.some((l) => (l.a.x === a.x && l.a.y === a.y && l.a.z === a.z && l.b.x === b.x && l.b.y === b.y && l.b.z === b.z) || (l.a.x === b.x && l.a.y === b.y && l.a.z === b.z && l.b.x === a.x && l.b.y === a.y && l.b.z === a.z));
+  if (exists) { showHint('Those rails are already linked', 1400); return; }
+  let cost = creative ? 0 : Math.max(1, Math.ceil(Math.hypot(b.x-a.x, b.y-a.y, b.z-a.z)));
+  if (cost) {
+    let count = 0; for (const st of slots) if (st && st.id === 251) count += st.n;
+    if (count < cost) { showHint('Need ' + cost + ' rails to connect them', 1600); return; }
+    for (let i = 0; i < slots.length && cost > 0; i++) if (slots[i] && slots[i].id === 251) { const take = Math.min(cost, slots[i].n); slots[i].n -= take; cost -= take; if (slots[i].n <= 0) slots[i] = null; }
+    invChanged();
+  }
+  railLinks.push({ a: a, b: b }); changed = true; save(); showHint('Rail connection created', 1400);
+}
 function act(btn, first) {
   { const hs = slots[sel]; if (!(btn === 2 && hs && (hs.id === 133 || FOOD[hs.id]))) swingT = 1; }   /* the hand swings */
   if (btn === 0 && targetMob) { attackMob(targetMob); return; }
   const st = slots[sel], shiftDown = keys.ShiftLeft || keys.ShiftRight;
+  if (btn === 0 && first && st && st.id === 199) { useRailWrench(target); return; }
   if (btn === 2) {
     if (btn === 2 && st && st.id === 153 && targetMob && targetMob.type === 'cow') {   /* a bowl on a cow: a bowl of milk (a cow gives milk once a minute) */
       if (first) {
@@ -4491,7 +4521,7 @@ function save() {
   if (dead) return;
   const away = wid !== 'o'; if (away) swapMaps(wid, 'o');
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ seed: homeSeed, edits: wid === 'o' ? edits : others.o, other: othersJSON(), p: wid === 'o' ? [player.x, player.y, player.z] : homeP, yaw: yaw, pitch: pitch, gen: GEN, time: worldTime, bed: bedSpawn, chests: chestsJSON(), furnaces: furnacesJSON(), grow: growJSON(), slots: slots, armor: armor, creative: creative, vit: { health: vit.health, food: vit.food, sat: vit.sat } }));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ railLinks: railLinks, seed: homeSeed, edits: wid === 'o' ? edits : others.o, other: othersJSON(), p: wid === 'o' ? [player.x, player.y, player.z] : homeP, yaw: yaw, pitch: pitch, gen: GEN, time: worldTime, bed: bedSpawn, chests: chestsJSON(), furnaces: furnacesJSON(), grow: growJSON(), slots: slots, armor: armor, creative: creative, vit: { health: vit.health, food: vit.food, sat: vit.sat } }));
   } catch (e) {}
   if (away) swapMaps('o', wid);
 }
