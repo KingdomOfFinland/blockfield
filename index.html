@@ -2734,6 +2734,13 @@ function meshChunk(c) {
       flat(x, y, z, 0.06, 0.06, 0.94, 0.94, y + 0.1, def.f[0], 0.95, true, getFl(x, y, z) & 3);
       continue;
     }
+    if (id === 205) {
+      /* bed: keep the mattress and wooden base inside one block; the top is a single 16x16 tile */
+      box(x, y, z, 0.04, 0, 0.04, 0.96, 0.14, 0.96, 5);
+      box(x, y, z, 0.04, 0.14, 0.04, 0.96, 0.4, 0.96, 188);
+      flat(x, y, z, 0.04, 0.04, 0.96, 0.96, y + 0.401, 187, 0.98, true);
+      continue;
+    }
     if (id >= 208 && id <= 211) {
       /* a door is a thin panel on one edge of its block; opening swings it onto the next edge */
       const S = 0.1875, df = getFl(x, y, z) & 3;
