@@ -448,7 +448,7 @@ ITEM_INFO[130] = { name: 'Rotten Flesh', tile: 75 }; ITEM_INFO[131] = { name: 'B
 ['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[146 + i] = { name: 'Golden ' + nm, tile: 118 + i }; }); ITEM_INFO[142] = { name: 'Rock', tile: 112 }; ITEM_INFO[143] = { name: 'Packed Snowball', tile: 113 };
 ITEM_INFO[151] = { name: 'Clay Ball', tile: 129 }; ITEM_INFO[152] = { name: 'Brick', tile: 130 }; ITEM_INFO[153] = { name: 'Clay Bowl', tile: 131 };
 ITEM_INFO[154] = { name: 'Ruby', tile: 133 }; ITEM_INFO[159] = { name: 'Knife', tile: 138 };
-ITEM_INFO[239] = { name: 'Emerald', tile: 234 }; ITEM_INFO[249] = { name: 'Raw Steel', tile: 22 }; ITEM_INFO[250] = { name: 'Steel Ingot', tile: 22 };
+ITEM_INFO[239] = { name: 'Emerald', tile: 234 }; ITEM_INFO[249] = { name: 'Raw Steel', tile: 22 }; ITEM_INFO[250] = { name: 'Steel Ingot', tile: 22 }; ITEM_INFO[252] = { name: 'Minecart', tile: 240 };
 ['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[240 + i] = { name: 'Emerald ' + nm, tile: 235 + i }; });
 [['Tomato', 143], ['Lettuce', 144], ['Carrot', 145], ['Sliced Tomato', 146], ['Sliced Lettuce', 147], ['Sliced Carrot', 148], ['Tomato Salad', 149], ['Carrot Salad', 150], ['Garden Salad', 151], ['Raw Chicken', 152], ['Cooked Chicken', 153], ['Feather', 154]].forEach((e, i) => { ITEM_INFO[160 + i] = { name: e[0], tile: e[1] }; });
 [['Hoe', 159], ['Egg', 160], ['Fried Egg', 161], ['Veggie Pie', 162]].forEach((e, i) => { ITEM_INFO[172 + i] = { name: e[0], tile: e[1] }; });
@@ -476,12 +476,12 @@ const isBlk = (id) => id < 100 || (id >= 200 && !(id >= 215 && id <= 230) && !(i
 const itemName = (id) => isBlk(id) ? NAMES[id] : ITEM_INFO[id].name;
 const itemTile = (id) => id === 80 ? 126 : isBlk(id) ? DEFS[id].f[0] : ITEM_INFO[id].tile;
 const PLACEABLE = [251, 244, 245, 246, 247, 248, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 237, 238, 208, 231, 232, 233, 234, 235, 236];
-const PALETTE = PLACEABLE.concat([100, 101, 102, 103, 104, 105, 106, 107, 108, 109]);
+const PALETTE = PLACEABLE.concat([100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 252]);
 for (let i = 0; i < 12; i++) PALETTE.push(TOOL_BASE + i);
 for (let i = 0; i < 4; i++) PALETTE.push(SWORD_BASE + i);
 [126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185].forEach((id) => PALETTE.push(id));
 [239, 240, 241, 242, 243, 249, 250, 199].forEach((id) => PALETTE.push(id));
-const validItem = (id) => Number.isInteger(id) && (PLACEABLE.indexOf(id) >= 0 || (id >= 100 && id <= 109) || isDur(id) || (id >= 126 && id <= 135) || id === 140 || (id >= 141 && id <= 145) || id === 150 || (id >= 151 && id <= 154) || (id >= 160 && id <= 199) || (id >= 215 && id <= 230) || (id >= 239 && id <= 243) || (id >= 249 && id <= 250) || id === 199);
+const validItem = (id) => Number.isInteger(id) && (PLACEABLE.indexOf(id) >= 0 || (id >= 100 && id <= 109) || isDur(id) || (id >= 126 && id <= 135) || id === 140 || (id >= 141 && id <= 145) || id === 150 || (id >= 151 && id <= 154) || (id >= 160 && id <= 199) || (id >= 215 && id <= 230) || (id >= 239 && id <= 243) || (id >= 249 && id <= 250) || id === 199 || id === 252);
 function makeStack(id, n) { const s = { id: id, n: n }; if (isDur(id)) s.d = toolMax(id); return s; }
 /* food restores hunger points (20 = full bar) and saturation */
 const FOOD = { 150: { food: 4, sat: 9.6, heal: 8 }, 104: { food: 4, sat: 2.4 }, 126: { food: 3, sat: 1.8 }, 127: { food: 3, sat: 1.8 }, 128: { food: 8, sat: 12.8 }, 129: { food: 8, sat: 12.8 }, 130: { food: 2, sat: 0.4 },
@@ -558,7 +558,8 @@ shaped([[5], [5]], 100, 4);            /* 2 planks -> 4 sticks */
 shaped([[5, 5], [5, 5]], 17, 1);       /* 4 planks -> crafting table */
 shaped([[171, 171, 171], [5, 5, 5]], 205, 1);
 shaped([[102, 100], [100, 102]], 199, 1); /* rail wrench */
-shaped([[250, 0, 250], [250, 100, 250], [250, 0, 250]], 251, 8); /* eight rails from steel and a stick */   /* bed: 3 feathers over 3 planks */
+shaped([[250, 0, 250], [250, 100, 250], [250, 0, 250]], 251, 8);
+shaped([[250, 0, 250], [250, 250, 250]], 252, 1); /* minecart */ /* eight rails from steel and a stick */   /* bed: 3 feathers over 3 planks */
 shaped([[5, 5, 5], [5, 0, 5], [5, 5, 5]], 206, 1);
 shaped([[5, 5], [5, 5], [5, 5]], 208, 3);   /* door: 6 planks make 3 doors */
 shaped([[5, 100, 5], [5, 100, 5]], 232, 3);   /* fence: planks and sticks make 3 fences */
@@ -3077,6 +3078,7 @@ if (sameGen && Array.isArray(saved.p) && saved.p.length === 3 && saved.p.every(N
 fallPeak = player.y;
 const keys = {};
 function updatePlayer(dt) {
+  if (cartRide) { cartStep(dt); return; }
   let fx = 0, fz = 0;
   if (keys.KeyW) fz -= 1; if (keys.KeyS) fz += 1;
   if (keys.KeyA) fx -= 1; if (keys.KeyD) fx += 1;
@@ -3606,11 +3608,92 @@ function useRailWrench(h) {
   }
   railLinks.push({ a: a, b: b }); rebuildRailLinkMeshes(); changed = true; save(); showHint('Rail connection created', 1400);
 }
+
+/* minecart: rides the existing wrench-linked rail graph */
+let cartRide = null;
+const cartBodyMat = new THREE.MeshBasicMaterial({ color: 0x66717a });
+const cartRimMat = new THREE.MeshBasicMaterial({ color: 0x303940 });
+const cartWheelMat = new THREE.MeshBasicMaterial({ color: 0x171b20 });
+function buildMinecartMesh() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.34, 0.62), cartBodyMat);
+  body.position.y = 0.23; g.add(body);
+  const rim = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.09, 0.68), cartRimMat);
+  rim.position.y = 0.42; g.add(rim);
+  const wheelGeo = new THREE.CylinderGeometry(0.13, 0.13, 0.09, 10);
+  for (const x of [-0.29, 0.29]) for (const z of [-0.27, 0.27]) {
+    const w = new THREE.Mesh(wheelGeo, cartWheelMat);
+    w.rotation.z = Math.PI / 2; w.position.set(x, 0.13, z); g.add(w);
+  }
+  return g;
+}
+function mountMinecart(h) {
+  if (!h || getBlock(h.x, h.y, h.z) !== 251) { showHint('Aim at a rail to place the minecart', 1400); return; }
+  if (cartRide) return;
+  let best = -1, bestD = Infinity, bestT = 0;
+  for (let i = 0; i < railLinks.length; i++) {
+    const l = railLinks[i], ax = l.a.x + 0.5, az = l.a.z + 0.5, bx = l.b.x + 0.5, bz = l.b.z + 0.5;
+    const dx = bx - ax, dz = bz - az, len2 = dx * dx + dz * dz || 1;
+    const t = Math.max(0, Math.min(1, ((h.x + 0.5 - ax) * dx + (h.z + 0.5 - az) * dz) / len2));
+    const px = ax + dx * t, pz = az + dz * t, d = Math.hypot(px - (h.x + 0.5), pz - (h.z + 0.5));
+    if (d < bestD) { bestD = d; best = i; bestT = t; }
+  }
+  if (best < 0 || bestD > 1.5) { showHint('Connect rails with the wrench first', 1600); return; }
+  const mesh = buildMinecartMesh(); scene.add(mesh);
+  cartRide = { link: best, t: bestT, dir: 1, speed: 0, mesh: mesh };
+  if (!creative) { const st = slots[sel]; st.n--; if (st.n <= 0) slots[sel] = null; invChanged(); }
+  showHint('Minecart mounted — W to accelerate, S to brake, Space to exit', 2600);
+}
+function dismountMinecart() {
+  if (!cartRide) return;
+  const c = cartRide, l = railLinks[c.link], t = c.t;
+  const x = l.a.x + 0.5 + (l.b.x - l.a.x) * t, z = l.a.z + 0.5 + (l.b.z - l.a.z) * t;
+  scene.remove(c.mesh); cartRide = null;
+  player.x = x + 0.9; player.z = z; player.y = l.a.y + 0.55;
+  player.vx = player.vy = player.vz = 0; player.onGround = false;
+  showHint('You left the minecart', 1000);
+}
+function cartStep(dt) {
+  const c = cartRide;
+  if (!c) return;
+  if (keys.Space) { dismountMinecart(); return; }
+  const l = railLinks[c.link];
+  if (!l) { dismountMinecart(); return; }
+  if (keys.KeyW) c.speed = Math.min(9, c.speed + 5 * dt);
+  else if (keys.KeyS) c.speed = Math.max(0, c.speed - 9 * dt);
+  else c.speed *= Math.exp(-0.55 * dt);
+  if (keys.ShiftLeft || keys.ShiftRight) c.speed = Math.max(0, c.speed - 14 * dt);
+  const dx = l.b.x - l.a.x, dz = l.b.z - l.a.z, dy = l.b.y - l.a.y;
+  const length = Math.hypot(dx, dy, dz) || 1;
+  c.t += c.dir * c.speed * dt / length;
+  if (c.t > 1 || c.t < 0) {
+    const end = c.t > 1 ? l.b : l.a, overshoot = c.t > 1 ? c.t - 1 : -c.t;
+    const next = railLinks.findIndex((q, i) => i !== c.link &&
+      ((q.a.x === end.x && q.a.y === end.y && q.a.z === end.z) || (q.b.x === end.x && q.b.y === end.y && q.b.z === end.z)));
+    if (next < 0) { c.t = c.t > 1 ? 1 : 0; c.speed = 0; }
+    else {
+      c.link = next; const nl = railLinks[next];
+      const startsAtA = nl.a.x === end.x && nl.a.y === end.y && nl.a.z === end.z;
+      c.t = startsAtA ? Math.min(1, overshoot) : 1 - Math.min(1, overshoot);
+      c.dir = startsAtA ? 1 : -1;
+    }
+  }
+  const q = railLinks[c.link], t = c.t;
+  const x = q.a.x + 0.5 + (q.b.x - q.a.x) * t, z = q.a.z + 0.5 + (q.b.z - q.a.z) * t;
+  const y = q.a.y + (q.b.y - q.a.y) * t;
+  const vx = q.b.x - q.a.x, vz = q.b.z - q.a.z;
+  c.mesh.position.set(x, y + 0.05, z);
+  c.mesh.rotation.y = Math.atan2(vx * c.dir, vz * c.dir);
+  player.x = x; player.z = z; player.y = y + 0.42;
+  player.vx = player.vy = player.vz = 0; player.onGround = true;
+  yaw = c.mesh.rotation.y; sprinting = false; inWater = inLava = headWater = headLava = false;
+}
 function act(btn, first) {
   { const hs = slots[sel]; if (!(btn === 2 && hs && (hs.id === 133 || FOOD[hs.id]))) swingT = 1; }   /* the hand swings */
   if (btn === 0 && targetMob) { attackMob(targetMob); return; }
   const st = slots[sel], shiftDown = keys.ShiftLeft || keys.ShiftRight;
   if (btn === 0 && first && st && st.id === 199) { useRailWrench(target); return; }
+  if (btn === 2 && first && st && st.id === 252) { mountMinecart(target); return; }
   if (btn === 2) {
     if (btn === 2 && st && st.id === 153 && targetMob && targetMob.type === 'cow') {   /* a bowl on a cow: a bowl of milk (a cow gives milk once a minute) */
       if (first) {
