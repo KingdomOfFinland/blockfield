@@ -2845,14 +2845,14 @@ function meshChunk(c) {
 }
 
 /* ---------------------------------------------------------------- streaming */
-let R = (window.matchMedia && matchMedia('(pointer: coarse)').matches) ? 4 : 5, queue = [], lastPcx = null, lastPcz = null, lastR = null, ready = false;
+let R = (window.matchMedia && matchMedia('(pointer: coarse)').matches) ? 4 : 5, queue = [], queueAt = 0, lastPcx = null, lastPcz = null, lastR = null, ready = false;
 function applyFog() {
   const far = R * CS - 4;
   scene.fog.far = far; scene.fog.near = far * 0.55;
 }
 applyFog();
 function scan(pcx, pcz) {
-  queue = [];
+  queue = []; queueAt = 0;
   const r2 = (R + 0.5) * (R + 0.5);
   for (let dz = -R; dz <= R; dz++) for (let dx = -R; dx <= R; dx++) {
     const dd = dx * dx + dz * dz; if (dd > r2) continue;
@@ -2872,11 +2872,12 @@ function stream() {
     lastPcx = pcx; lastPcz = pcz; lastR = R; scan(pcx, pcz);
   }
   const t0 = performance.now(); let n = 0;
-  while (queue.length && (n === 0 || performance.now() - t0 < 5)) {
-    const q = queue.shift(), c = getChunk(q.cx, q.cz);
+  while (queueAt < queue.length && (n === 0 || performance.now() - t0 < 5)) {
+    const q = queue[queueAt++], c = getChunk(q.cx, q.cz);
     if (c.built) continue;
     meshChunk(c); n++;
   }
+  if (queueAt >= queue.length) { queue = []; queueAt = 0; }
   if (dirty.size) {
     const t1 = performance.now();
     for (const c of dirty) {
