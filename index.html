@@ -422,6 +422,7 @@ NAMES[234] = 'Fossil Skull'; DEFS[234] = mk(229, 229, 229);
 NAMES[235] = 'Fossil Spine'; DEFS[235] = mk(230, 230, 230);
 NAMES[236] = 'Fossil Limb'; DEFS[236] = mk(231, 231, 231);
 NAMES[251] = 'Rail'; DEFS[251] = mk(240, 240, 240); TRANSP[251] = 1; PASS[251] = 1; FLATB[251] = 1;
+NAMES[253] = 'Powered Rail'; DEFS[253] = mk(241, 241, 241); TRANSP[253] = 1; PASS[253] = 1; FLATB[253] = 1;
 /* items: 100 to 103 are materials, 110 to 121 are tools (type * 4 + tier) */
 const TIERS = [
   { name: 'Wooden',  speed: 2, dur: 59,   mat: 5,   m: [186, 148, 95],  d: [128, 96, 56] },
@@ -475,7 +476,7 @@ const stackMax = (id) => (isDur(id) || id === 106 || id === 107 || id === 186 ||
 const isBlk = (id) => id < 100 || (id >= 200 && !(id >= 215 && id <= 230) && !(id >= 239 && id <= 243) && !(id >= 249 && id <= 250));   /* blocks live at 0 to 99 and 200 to 238; emerald items use 239 to 243 */
 const itemName = (id) => isBlk(id) ? NAMES[id] : ITEM_INFO[id].name;
 const itemTile = (id) => id === 80 ? 126 : isBlk(id) ? DEFS[id].f[0] : ITEM_INFO[id].tile;
-const PLACEABLE = [251, 244, 245, 246, 247, 248, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 237, 238, 208, 231, 232, 233, 234, 235, 236];
+const PLACEABLE = [251, 253, 244, 245, 246, 247, 248, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 27, 30, 31, 32, 33, 34, 35, 36, 41, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 68, 70, 71, 73, 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 93, 94, 95, 96, 97, 98, 99, 200, 201, 202, 203, 204, 205, 206, 207, 237, 238, 208, 231, 232, 233, 234, 235, 236];
 const PALETTE = PLACEABLE.concat([100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 252]);
 for (let i = 0; i < 12; i++) PALETTE.push(TOOL_BASE + i);
 for (let i = 0; i < 4; i++) PALETTE.push(SWORD_BASE + i);
@@ -559,7 +560,8 @@ shaped([[5, 5], [5, 5]], 17, 1);       /* 4 planks -> crafting table */
 shaped([[171, 171, 171], [5, 5, 5]], 205, 1);
 shaped([[102, 100], [100, 102]], 199, 1); /* rail wrench */
 shaped([[250, 0, 250], [250, 100, 250], [250, 0, 250]], 251, 8);
-shaped([[250, 0, 250], [250, 250, 250]], 252, 1); /* minecart */ /* eight rails from steel and a stick */   /* bed: 3 feathers over 3 planks */
+shaped([[250, 0, 250], [250, 250, 250]], 252, 1); /* minecart */
+shaped([[250, 250, 250], [100, 101, 100], [250, 250, 250]], 253, 6); /* powered rails */ /* eight rails from steel and a stick */   /* bed: 3 feathers over 3 planks */
 shaped([[5, 5, 5], [5, 0, 5], [5, 5, 5]], 206, 1);
 shaped([[5, 5], [5, 5], [5, 5]], 208, 3);   /* door: 6 planks make 3 doors */
 shaped([[5, 100, 5], [5, 100, 5]], 232, 3);   /* fence: planks and sticks make 3 fences */
@@ -2702,11 +2704,12 @@ function meshChunk(c) {
     if (!id) continue;
     const def = DEFS[id];
     if (id >= 36 && id <= 40) { pushTorch(gl, x, y, z, id); continue; }
-    if (id === 251) {
-      /* two steel rails on wooden sleepers */
+    if (id === 251 || id === 253) {
+      /* steel rails on wooden sleepers; powered rails have copper-red conductors */
       for (let t = 0.08; t < 1; t += 0.24) box(x, y, z, 0.06, 0.015, t, 0.94, 0.075, Math.min(1, t + 0.09), 5);
-      box(x, y, z, 0.16, 0.075, 0.04, 0.23, 0.16, 0.96, 240);
-      box(x, y, z, 0.77, 0.075, 0.04, 0.84, 0.16, 0.96, 240);
+      const tile = id === 253 ? 241 : 240;
+      box(x, y, z, 0.16, 0.075, 0.04, 0.23, 0.16, 0.96, tile);
+      box(x, y, z, 0.77, 0.075, 0.04, 0.84, 0.16, 0.96, tile);
       continue;
     }
     if (id === 61) {
@@ -3558,6 +3561,7 @@ const railLinks = (saved && Array.isArray(saved.railLinks)) ? saved.railLinks.fi
 const railLinkGroup = new THREE.Group();
 scene.add(railLinkGroup);
 const railMetalMat = new THREE.MeshBasicMaterial({ color: 0x9ba5aa });
+const poweredRailMat = new THREE.MeshBasicMaterial({ color: 0xd65b32 });
 const railWoodMat = new THREE.MeshBasicMaterial({ color: 0x65452f });
 const railBeamGeo = new THREE.BoxGeometry(1, 0.075, 0.075);
 const railTieGeo = new THREE.BoxGeometry(0.48, 0.07, 0.12);
@@ -3573,8 +3577,9 @@ function rebuildRailLinkMeshes() {
     const side = new THREE.Vector3(-dir.z, 0, dir.x);
     if (side.lengthSq() < 0.001) side.set(1, 0, 0); else side.normalize();
     const quat = new THREE.Quaternion().setFromUnitVectors(axis, dir);
+    const linkPowered = railPointPowered(link.a) || railPointPowered(link.b);
     for (const offset of [-0.14, 0.14]) {
-      const rail = new THREE.Mesh(railBeamGeo, railMetalMat);
+      const rail = new THREE.Mesh(railBeamGeo, linkPowered ? poweredRailMat : railMetalMat);
       rail.position.copy(a).add(b).multiplyScalar(0.5).addScaledVector(side, offset);
       rail.scale.set(length, 1, 1);
       rail.quaternion.copy(quat);
@@ -3592,7 +3597,7 @@ function rebuildRailLinkMeshes() {
 }
 rebuildRailLinkMeshes();
 function useRailWrench(h) {
-  if (!h || getBlock(h.x, h.y, h.z) !== 251) { showHint('Select a rail with the wrench', 1200); return; }
+  if (!h || (getBlock(h.x, h.y, h.z) !== 251 && getBlock(h.x, h.y, h.z) !== 253)) { showHint('Select a rail with the wrench', 1200); return; }
   const point = { x: h.x, y: h.y, z: h.z };
   if (!railLinkStart) { railLinkStart = point; showHint('First rail selected — click the second rail', 1800); return; }
   const a = railLinkStart, b = point; railLinkStart = null;
@@ -3628,7 +3633,7 @@ function buildMinecartMesh() {
   return g;
 }
 function mountMinecart(h) {
-  if (!h || getBlock(h.x, h.y, h.z) !== 251) { showHint('Aim at a rail to place the minecart', 1400); return; }
+  if (!h || (getBlock(h.x, h.y, h.z) !== 251 && getBlock(h.x, h.y, h.z) !== 253)) { showHint('Aim at a rail to place the minecart', 1400); return; }
   if (cartRide) return;
   let best = -1, bestD = Infinity, bestT = 0;
   for (let i = 0; i < railLinks.length; i++) {
@@ -3653,15 +3658,27 @@ function dismountMinecart() {
   player.vx = player.vy = player.vz = 0; player.onGround = false;
   showHint('You left the minecart', 1000);
 }
+function railPointPowered(p) {
+  if (getBlock(p.x, p.y, p.z) !== 253) return false;
+  for (const d of N6) {
+    const id = getBlock(p.x + d[0], p.y + d[1], p.z + d[2]);
+    if (SRC_ON[id]) return true;
+    if (id === 61 && getF(p.x + d[0], p.y + d[1], p.z + d[2]) > 0) return true;
+  }
+  return false;
+}
+function railLinkPowered(link) { return railPointPowered(link.a) || railPointPowered(link.b); }
 function cartStep(dt) {
   const c = cartRide;
   if (!c) return;
   if (keys.Space) { dismountMinecart(); return; }
   const l = railLinks[c.link];
   if (!l) { dismountMinecart(); return; }
-  if (keys.KeyW) c.speed = Math.min(9, c.speed + 5 * dt);
+  const powered = railLinkPowered(l);
+  if (powered) c.speed = Math.min(13, c.speed + 11 * dt);
+  if (keys.KeyW) c.speed = Math.min(13, c.speed + (powered ? 3 : 5) * dt);
   else if (keys.KeyS) c.speed = Math.max(0, c.speed - 9 * dt);
-  else c.speed *= Math.exp(-0.55 * dt);
+  else if (!powered) c.speed *= Math.exp(-0.55 * dt);
   if (keys.ShiftLeft || keys.ShiftRight) c.speed = Math.max(0, c.speed - 14 * dt);
   const dx = l.b.x - l.a.x, dz = l.b.z - l.a.z, dy = l.b.y - l.a.y;
   const length = Math.hypot(dx, dy, dz) || 1;
