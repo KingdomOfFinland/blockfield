@@ -4131,7 +4131,7 @@ document.addEventListener('keydown', (e) => {
     if (!creative) showHint('Flying is for creative mode', 1200);
     else { player.fly = !player.fly; player.vy = 0; fallPeak = player.y; showHint(player.fly ? 'Flying on' : 'Flying off', 1000); }
   }
-  else if (e.code === 'BracketLeft') { R = Math.max(2, R - 1); applyFog(); showHint('View distance ' + R, 1000); }
+  else if (e.code === 'BracketLeft') { R = Math.max(2, R - 1); SENS.dist = R; SENS.stress = false; applyFog(); showHint('View distance ' + R, 1000); }
   else if (e.code === 'BracketRight') { R = Math.min(64, R + 1); SENS.dist = R; SENS.stress = false; applyFog(); showHint('View distance ' + R, 1000); }
   else if (e.code === 'KeyT') { if (creative) { worldTime += DAY_LEN * 0.125; showHint('Time ' + clockStr(), 1200); } else showHint('Skipping time is for creative mode', 1200); }
 });
@@ -4144,6 +4144,7 @@ const SENS = { look: 1, fov: 75, dist: R, res: PHONE ? 1 : 1.5, cap: PHONE ? 30 
 const SET_KEY = 'blockfield-settings';
 let setStored = false;
 try { const o = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (o) { setStored = true; for (const k in SENS) { if (typeof SENS[k] === 'boolean' && typeof o[k] === 'boolean') SENS[k] = o[k]; else if (Number.isFinite(o[k])) SENS[k] = o[k]; } } } catch (e) {}
+SENS.stress = false; /* stress mode is deliberately session-only; never auto-enable a huge load on startup */
 function applySettings() {
   camera.fov = SENS.fov; camera.updateProjectionMatrix();
   SENS.dist = Math.max(2, Math.min(64, Math.round(SENS.dist)));
