@@ -3622,7 +3622,7 @@ function rebuildRailLinkMeshes() {
     }
   }
 }
-rebuildRailLinkMeshes();
+/* Initial rail mesh build is deferred until SRC_ON and N6 are initialized. */
 function useRailWrench(h) {
   if (!h || ![251, 253, 254].includes(getBlock(h.x, h.y, h.z))) { showHint('Select a rail with the wrench', 1200); return; }
   const point = { x: h.x, y: h.y, z: h.z };
@@ -5419,6 +5419,7 @@ const SRC_ON = { 65: 1, 67: 1, 69: 1, 70: 1 };     /* lever on, button pressed, 
 const CONSUMER = { 62: 62, 63: 62, 71: 71, 72: 71 };   /* lamp and gate, either state -> the resting state */
 const CON_ON = { 62: 63, 71: 72 };
 const N6 = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+rebuildRailLinkMeshes();
 const btnT = new Map(), plateHold = new Map();
 const REPD = [[1, 0], [-1, 0], [0, 1], [0, -1]];   /* repeater facing -> (dx, dz) */
 const repQ = new Map();                              /* repeaters waiting to change state: key -> { want, t } */
