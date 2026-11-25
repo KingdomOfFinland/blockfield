@@ -3773,7 +3773,8 @@ function cartStep(dt) {
   c.mesh.rotation.y = Math.atan2(vx * c.dir, vz * c.dir);
   player.x = x; player.z = z; player.y = y + 0.42;
   player.vx = player.vy = player.vz = 0; player.onGround = true;
-  yaw = c.mesh.rotation.y; sprinting = false; inWater = inLava = headWater = headLava = false;
+  /* keep camera yaw independent from cart direction so the rider can look around */
+  sprinting = false; inWater = inLava = headWater = headLava = false;
 }
 function act(btn, first) {
   { const hs = slots[sel]; if (!(btn === 2 && hs && (hs.id === 133 || FOOD[hs.id]))) swingT = 1; }   /* the hand swings */
