@@ -3736,7 +3736,26 @@ function cartStep(dt) {
     /* avoid reversing onto the previous segment unless it is the only route */
     const forwardChoices = choices.filter((i) => i !== c.previousLink);
     if (forwardChoices.length) choices = forwardChoices;
-    if (!choices.length) { c.t = atB ? 1 : 0; c.speed = 0; }
+    if (!choices.length) {
+      /* no connected rail: preserve momentum and launch the rider off the endpoint */
+      c.t = atB ? 1 : 0;
+      const endX = end.x + 0.5, endZ = end.z + 0.5, endY = end.y;
+      const travelX = (l.b.x - l.a.x) * c.dir;
+      const travelY = (l.b.y - l.a.y) * c.dir;
+      const travelZ = (l.b.z - l.a.z) * c.dir;
+      const travelLength = Math.hypot(travelX, travelY, travelZ) || 1;
+      const launchSpeed = c.speed;
+      scene.remove(c.mesh);
+      cartRide = null;
+      player.x = endX; player.y = endY + 0.55; player.z = endZ;
+      player.vx = travelX / travelLength * launchSpeed;
+      player.vy = travelY / travelLength * launchSpeed;
+      player.vz = travelZ / travelLength * launchSpeed;
+      player.onGround = false;
+      fallPeak = player.y;
+      showHint('RAIL END! You were launched at ' + launchSpeed.toFixed(1) + ' blocks/s', 2200);
+      return;
+    }
     else {
       let next = choices[0];
       if (choices.length > 1) {
