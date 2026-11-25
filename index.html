@@ -2373,8 +2373,9 @@ function fluidStep(dt) {
   const t0 = performance.now(); let n = 0;
   for (const [k, due] of fluidDue) {
     if (due > fluidClock) continue;
-    fluidDue.delete(k);
     const q = k.split(',');
+    if (!simulationActive(+q[0], +q[2])) continue;
+    fluidDue.delete(k);
     tickFluid(+q[0], +q[1], +q[2]);
     if (++n >= 300 || performance.now() - t0 > 4) break;
   }
@@ -3193,7 +3194,7 @@ function plantSeedling(x, y, z, id) {
 }
 function growStep(dt) {
   for (const [k, g] of growing) {
-    if (!chunkLoaded(g.x, g.z)) continue;
+    if (!chunkLoaded(g.x, g.z) || !simulationActive(g.x, g.z)) continue;
     const b = getBlock(g.x, g.y, g.z);
     if (b < 88 || b === 91 || b > 92) { growing.delete(k); continue; }
     g.t -= dt;
@@ -3246,7 +3247,9 @@ function furnacesJSON() {
 })();
 function furnaceTick(dt) {
   for (const [k, f] of furnaces) {
-    const p = k.split(',').map(Number), bid = getBlock(p[0], p[1], p[2]);
+    const p = k.split(',').map(Number);
+    if (!simulationActive(p[0], p[2])) continue;
+    const bid = getBlock(p[0], p[1], p[2]);
     if (bid < 41 || bid > 48) { furnaces.delete(k); continue; }
     const sm = f.inp ? SMELT[f.inp.id] : null;
     const canSmelt = !!sm && (!f.out || (f.out.id === sm[0] && f.out.n + sm[1] <= stackMax(sm[0])));
@@ -4293,8 +4296,14 @@ window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; h
 
 /* ---- settings: look speed, field of view, view distance, render scale (saved on this device) ---- */
 const PHONE = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
-const SENS = { look: 1, fov: 75, dist: R, res: LOW_END ? 0.75 : (PHONE ? 1 : 1.5), cap: (LOW_END || PHONE) ? 30 : 60, diff: 0, sound: 0.7, stress: false, enhanced: false };   /* cap = most frames per second (fewer frames, cooler phone) */
+const SENS = { look: 1, fov: 75, dist: R, simDist: 4, res: LOW_END ? 0.75 : (PHONE ? 1 : 1.5), cap: (LOW_END || PHONE) ? 30 : 60, diff: 0, sound: 0.7, stress: false, enhanced: false };   /* cap = most frames per second (fewer frames, cooler phone) */
 const SET_KEY = 'blockfield-settings';
+function simulationChunkActive(cx, cz) {
+  const pcx = Math.floor(player.x / CS), pcz = Math.floor(player.z / CS);
+  const dx = cx - pcx, dz = cz - pcz, radius = Math.max(2, Math.min(16, Math.round(SENS.simDist)));
+  return dx * dx + dz * dz <= radius * radius;
+}
+function simulationActive(x, z) { return simulationChunkActive(Math.floor(x / CS), Math.floor(z / CS)); }
 let setStored = false;
 try { const o = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (o) { setStored = true; for (const k in SENS) { if (typeof SENS[k] === 'boolean' && typeof o[k] === 'boolean') SENS[k] = o[k]; else if (Number.isFinite(o[k])) SENS[k] = o[k]; } } } catch (e) {}
 if (LOW_END) { SENS.dist = Math.min(SENS.dist, 2); SENS.res = Math.min(SENS.res, 0.75); SENS.cap = Math.min(SENS.cap, 30); }
@@ -4302,6 +4311,7 @@ SENS.stress = false; /* stress mode is deliberately session-only; never auto-ena
 function applySettings() {
   camera.fov = SENS.fov; camera.updateProjectionMatrix();
   SENS.dist = Math.max(2, Math.min(64, Math.round(SENS.dist)));
+  SENS.simDist = Math.max(2, Math.min(16, Math.round(SENS.simDist)));
   R = SENS.stress ? 64 : SENS.dist; applyFog();
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, SENS.enhanced ? Math.max(2, SENS.res) : SENS.res));
   renderer.toneMapping = SENS.enhanced ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
@@ -4317,7 +4327,7 @@ if (setStored) applySettings();
   card.style.cssText = 'max-width:460px;margin:0 auto;background:#222;border-radius:12px;padding:12px 16px;';
   card.innerHTML = '<h2 style="margin:0 0 6px;font-size:18px">Settings</h2>';
   const ctl = [];
-  [['look', 'Look speed', 0.4, 3, 0.1, 'x'], ['fov', 'Field of view', 50, 110, 1, ' deg'], ['dist', 'View distance', 2, 64, 1, ' chunks'], ['res', 'Render scale', 0.5, 2, 0.25, 'x'], ['cap', 'Max FPS', 20, 120, 10, ' fps'], ['diff', 'Difficulty (0 normal, 1 hard)', 0, 1, 1, ''], ['sound', 'Sound volume', 0, 1, 0.1, '']].forEach((r) => {
+  [['look', 'Look speed', 0.4, 3, 0.1, 'x'], ['fov', 'Field of view', 50, 110, 1, ' deg'], ['dist', 'View distance', 2, 64, 1, ' chunks'], ['simDist', 'Simulation distance', 2, 16, 1, ' chunks'], ['res', 'Render scale', 0.5, 2, 0.25, 'x'], ['cap', 'Max FPS', 20, 120, 10, ' fps'], ['diff', 'Difficulty (0 normal, 1 hard)', 0, 1, 1, ''], ['sound', 'Sound volume', 0, 1, 0.1, '']].forEach((r) => {
     const row = document.createElement('label'); row.style.cssText = 'display:block;margin:6px 0;';
     const val = document.createElement('span'), inp = document.createElement('input');
     inp.type = 'range'; inp.min = r[2]; inp.max = r[3]; inp.step = r[4]; inp.style.cssText = 'width:100%;';
@@ -5345,6 +5355,7 @@ function updateMob(m, dt) {
 function mobStep(dt) {
   for (let i = mobs.length - 1; i >= 0; i--) {
     const m = mobs[i], d = Math.hypot(m.x - player.x, m.z - player.z);
+    if (!simulationActive(m.x, m.z)) continue;
     if (m.def.hostile ? (d > 72 || (d > 24 && daylight > 0.4 && m.sky)) : d > 100) { removeMob(m); continue; }
     if (updateMob(m, dt)) removeMob(m);
   }
@@ -5374,6 +5385,7 @@ function ageStep(dt) {
   for (const ck of Object.keys(edits)) {
     if (!chunks.has(ck)) continue;
     const parts = ck.split(','), cx = +parts[0], cz = +parts[1], e = edits[ck];
+    if (!simulationChunkActive(cx, cz)) continue;
     for (const k in e) {
       const id = e[k] & 255;
       if (AGE_NEXT[id] && Math.random() < 1 - Math.exp(-step / AGE_MEAN[id])) {
@@ -5468,6 +5480,7 @@ function switchStep(dt) {
   for (const ck of Object.keys(edits)) {
     if (!chunks.has(ck)) continue;
     const parts = ck.split(','), cx = +parts[0], cz = +parts[1], e = edits[ck];
+    if (!simulationChunkActive(cx, cz)) continue;
     for (const k in e) {
       const id = e[k] & 255;
       if (id < 67 || id > 69 || id === 68) continue;
@@ -5478,6 +5491,7 @@ function switchStep(dt) {
   for (const ck of Object.keys(edits)) {
     if (!chunks.has(ck)) continue;
     const parts = ck.split(','), cx = +parts[0], cz = +parts[1], e = edits[ck];
+    if (!simulationChunkActive(cx, cz)) continue;
     for (const k in e) {
       if ((e[k] & 255) !== 68) continue;
       const idx = +k;
