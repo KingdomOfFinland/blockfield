@@ -3708,8 +3708,8 @@ function cartStep(dt) {
   const l = railLinks[c.link];
   if (!l) { dismountMinecart(); return; }
   const powered = railLinkPowered(l), braking = railLinkBrakes(l);
-  if (powered) c.speed += 11 * dt;
-  if (keys.KeyW) c.speed += (powered ? 3 : 5) * dt;
+  if (powered) c.speed += 40 * dt;
+  if (keys.KeyW) c.speed += (powered ? 18 : 12) * dt;
   else if (keys.KeyS) c.speed = Math.max(0, c.speed - 9 * dt);
   else if (!powered) c.speed *= Math.exp(-0.55 * dt);
   if (braking) c.speed = Math.max(0, c.speed - 18 * dt);
@@ -3718,7 +3718,7 @@ function cartStep(dt) {
   /* gravity accelerates the cart downhill and slows it uphill; no artificial speed cap */
   const dx = l.b.x - l.a.x, dz = l.b.z - l.a.z, dy = l.b.y - l.a.y;
   const length = Math.hypot(dx, dy, dz) || 1;
-  const downhillAccel = -14 * (dy * c.dir / length);
+  const downhillAccel = -24 * (dy * c.dir / length);
   const nextSpeed = c.speed + downhillAccel * dt;
   if (nextSpeed < 0) { c.dir *= -1; c.speed = -nextSpeed; }
   else c.speed = nextSpeed;
