@@ -5221,12 +5221,13 @@ function updateMob(m, dt) {
   let wantX = 0, wantZ = 0, sp = 0, chasing = false;
   /* hostile mobs only notice you inside their sight range (16 blocks, 12 while you crouch) with a clear line, or when hurt, then hunt your last known spot */
   m.seeT = (m.seeT || 0) - dt;
-  if (hostile && !dead && Math.abs(dyp) < 14 && !(def.neutralDay && daylight > 0.45 && !m.angry) && (m.angry || m.hurtT > 0 || (dh < ((keys.ShiftLeft || keys.ShiftRight) ? 12 : 16) && (dh < 4 || clearShot(m))))) { m.seeT = 6; m.tx = player.x; m.ty = player.y; m.tz = player.z; }
+  if (hostile && !creative && !dead && Math.abs(dyp) < 14 && !(def.neutralDay && daylight > 0.45 && !m.angry) && (m.angry || m.hurtT > 0 || (dh < ((keys.ShiftLeft || keys.ShiftRight) ? 12 : 16) && (dh < 4 || clearShot(m))))) { m.seeT = 6; m.tx = player.x; m.ty = player.y; m.tz = player.z; }
+  if (creative && hostile) { m.seeT = 0; m.angry = false; m.tx = m.x; m.tz = m.z; }
   if (m.kb > 0) {
     m.kb -= dt;
     const f = Math.exp(-dt * 3); m.vx *= f; m.vz *= f;
   } else {
-    if (hostile && !dead && m.seeT > 0 && !(def.neutralDay && daylight > 0.45 && !m.angry)) {
+    if (hostile && !creative && !dead && m.seeT > 0 && !(def.neutralDay && daylight > 0.45 && !m.angry)) {
       chasing = true;
       if (def.ranged) {
         /* skeletons keep their distance: close in when far, back off when near, sidestep in between */
