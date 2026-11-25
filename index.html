@@ -421,9 +421,9 @@ NAMES[233] = 'Bone Block'; DEFS[233] = mk(228, 228, 228);
 NAMES[234] = 'Fossil Skull'; DEFS[234] = mk(229, 229, 229);
 NAMES[235] = 'Fossil Spine'; DEFS[235] = mk(230, 230, 230);
 NAMES[236] = 'Fossil Limb'; DEFS[236] = mk(231, 231, 231);
-NAMES[251] = 'Rail'; DEFS[251] = mk(240, 240, 240); TRANSP[251] = 1; PASS[251] = 1; FLATB[251] = 1;
-NAMES[253] = 'Powered Rail'; DEFS[253] = mk(241, 241, 241); TRANSP[253] = 1; PASS[253] = 1; FLATB[253] = 1;
-NAMES[254] = 'Brake Rail'; DEFS[254] = mk(242, 242, 242); TRANSP[254] = 1; PASS[254] = 1; FLATB[254] = 1;
+NAMES[251] = 'Rail'; DEFS[251] = mk(244, 244, 244); TRANSP[251] = 1; PASS[251] = 1; FLATB[251] = 1;
+NAMES[253] = 'Powered Rail'; DEFS[253] = mk(245, 245, 245); TRANSP[253] = 1; PASS[253] = 1; FLATB[253] = 1;
+NAMES[254] = 'Brake Rail'; DEFS[254] = mk(246, 246, 246); TRANSP[254] = 1; PASS[254] = 1; FLATB[254] = 1;
 /* items: 100 to 103 are materials, 110 to 121 are tools (type * 4 + tier) */
 const TIERS = [
   { name: 'Wooden',  speed: 2, dur: 59,   mat: 5,   m: [186, 148, 95],  d: [128, 96, 56] },
@@ -460,6 +460,7 @@ ITEM_INFO[239] = { name: 'Emerald', tile: 234 }; ITEM_INFO[249] = { name: 'Raw S
 ['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[155 + i] = { name: 'Ruby ' + nm, tile: 134 + i }; });
 ['Pickaxe', 'Axe', 'Shovel', 'Sword'].forEach((nm, i) => { ITEM_INFO[136 + i] = { name: 'Copper ' + nm, tile: 93 + i }; });
 ITEM_INFO[199] = { name: 'Rail Wrench', tile: 243 };
+ITEM_INFO[251] = { name: 'Rail', tile: 244 }; ITEM_INFO[253] = { name: 'Powered Rail', tile: 245 }; ITEM_INFO[254] = { name: 'Brake Rail', tile: 246 };
 const isSword = (id) => (id >= SWORD_BASE && id < SWORD_BASE + 4) || id === 139 || id === 149 || id === 158 || id === 159 || id === 243;   /* 158 ruby sword, 159 knife */
 const isTool = (id) => (id >= TOOL_BASE && id < TOOL_BASE + 12) || (id >= 136 && id <= 138) || (id >= 146 && id <= 148) || (id >= 155 && id <= 157) || (id >= 240 && id <= 242);   /* 146 to 149: golden pickaxe, axe, shovel, sword */   /* 136 to 139 are the copper pickaxe, axe, shovel and sword */
 const isDur = (id) => isTool(id) || isSword(id) || id === 133 || id === 172 || (id >= 215 && id <= 230);
@@ -1720,6 +1721,20 @@ for (let i = 0; i < 48; i++) {
   if (i % 3 === 0) px(241, x, y, 174, 91, 55);
   if (i % 2 === 0) px(242, x, y, 157, 75, 43);
   px(243, x, y, 112, 61, 43);
+}
+/* rail icons: clean paired steel tracks on wooden sleepers, with distinct powered/brake center strips */
+for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+  const sleeper = (y === 2 || y === 6 || y === 10 || y === 14);
+  const rail = (x === 4 || x === 5 || x === 10 || x === 11);
+  const wood = sleeper && x >= 1 && x <= 14;
+  const steel = rail && y >= 1 && y <= 15;
+  const grain = ((x * 7 + y * 11) % 9) - 4;
+  const base = wood ? [112 + grain, 76 + grain, 45 + grain] : steel ? [190 + grain, 198 + grain, 205 + grain] : [48, 51, 55];
+  for (const tile of [244, 245, 246]) px(tile, x, y, base[0], base[1], base[2]);
+  if (x >= 7 && x <= 8 && y >= 2 && y <= 14) {
+    px(245, x, y, 218, 111 + grain, 38);
+    px(246, x, y, 224, 190 + grain, 55);
+  }
 }
 const tex = new THREE.CanvasTexture(atlas);
 tex.magFilter = THREE.NearestFilter;
