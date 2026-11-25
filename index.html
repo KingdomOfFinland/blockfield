@@ -3708,20 +3708,20 @@ function cartStep(dt) {
   const l = railLinks[c.link];
   if (!l) { dismountMinecart(); return; }
   const powered = railLinkPowered(l), braking = railLinkBrakes(l);
-  if (powered) c.speed = Math.min(13, c.speed + 11 * dt);
-  if (keys.KeyW) c.speed = Math.min(13, c.speed + (powered ? 3 : 5) * dt);
+  if (powered) c.speed = Math.min(20, c.speed + 11 * dt);
+  if (keys.KeyW) c.speed = Math.min(20, c.speed + (powered ? 3 : 5) * dt);
   else if (keys.KeyS) c.speed = Math.max(0, c.speed - 9 * dt);
   else if (!powered) c.speed *= Math.exp(-0.55 * dt);
   if (braking) c.speed = Math.max(0, c.speed - 18 * dt);
   if (keys.ShiftLeft || keys.ShiftRight) c.speed = Math.max(0, c.speed - 14 * dt);
 
-  /* gravity pulls the cart downhill and slows it uphill */
+  /* gravity accelerates the cart downhill and slows it uphill */
   const dx = l.b.x - l.a.x, dz = l.b.z - l.a.z, dy = l.b.y - l.a.y;
   const length = Math.hypot(dx, dy, dz) || 1;
-  const downhillAccel = -9.8 * (dy * c.dir / length);
+  const downhillAccel = -14 * (dy * c.dir / length);
   const nextSpeed = c.speed + downhillAccel * dt;
   if (nextSpeed < 0) { c.dir *= -1; c.speed = -nextSpeed; }
-  else c.speed = Math.min(13, nextSpeed);
+  else c.speed = Math.min(20, nextSpeed);
 
   c.t += c.dir * c.speed * dt / length;
   if (c.t > 1 || c.t < 0) {
