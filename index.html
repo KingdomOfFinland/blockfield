@@ -998,6 +998,10 @@ function paintArt(tile, rows, tier) {
 })();
 
 /* ------------------------------------------------------------------- three */
+/* ChromeOS classroom devices and other 4 GB / low-core systems need a smaller startup workload. */
+const LOW_END = /CrOS/i.test(navigator.userAgent || '') ||
+  (Number.isFinite(navigator.deviceMemory) && navigator.deviceMemory <= 4) ||
+  (Number.isFinite(navigator.hardwareConcurrency) && navigator.hardwareConcurrency <= 4);
 let renderer;
 try {
   renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false, powerPreference: 'high-performance' });
@@ -1006,7 +1010,7 @@ try {
   statusEl.textContent = 'WebGL is not available in this browser.';
   return;
 }
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, (window.matchMedia && matchMedia('(pointer: coarse)').matches) ? 1 : 1.5));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_END ? 0.75 : ((window.matchMedia && matchMedia('(pointer: coarse)').matches) ? 1 : 1.5)));
 renderer.setSize(window.innerWidth, window.innerHeight);
 
 /* ---- sword, meat and mob-food art (tiles 67 to 75) ---- */
@@ -2851,7 +2855,7 @@ function meshChunk(c) {
 }
 
 /* ---------------------------------------------------------------- streaming */
-let R = (window.matchMedia && matchMedia('(pointer: coarse)').matches) ? 4 : 5, queue = [], queueAt = 0, lastPcx = null, lastPcz = null, lastR = null, ready = false;
+let R = LOW_END ? 2 : ((window.matchMedia && matchMedia('(pointer: coarse)').matches) ? 4 : 5), queue = [], queueAt = 0, lastPcx = null, lastPcz = null, lastR = null, ready = false;
 function applyFog() {
   const far = R * CS - 4;
   scene.fog.far = far; scene.fog.near = far * 0.55;
@@ -4289,10 +4293,11 @@ window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; h
 
 /* ---- settings: look speed, field of view, view distance, render scale (saved on this device) ---- */
 const PHONE = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
-const SENS = { look: 1, fov: 75, dist: R, res: PHONE ? 1 : 1.5, cap: PHONE ? 30 : 60, diff: 0, sound: 0.7, stress: false, enhanced: false };   /* cap = most frames per second (fewer frames, cooler phone) */
+const SENS = { look: 1, fov: 75, dist: R, res: LOW_END ? 0.75 : (PHONE ? 1 : 1.5), cap: (LOW_END || PHONE) ? 30 : 60, diff: 0, sound: 0.7, stress: false, enhanced: false };   /* cap = most frames per second (fewer frames, cooler phone) */
 const SET_KEY = 'blockfield-settings';
 let setStored = false;
 try { const o = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (o) { setStored = true; for (const k in SENS) { if (typeof SENS[k] === 'boolean' && typeof o[k] === 'boolean') SENS[k] = o[k]; else if (Number.isFinite(o[k])) SENS[k] = o[k]; } } } catch (e) {}
+if (LOW_END) { SENS.dist = Math.min(SENS.dist, 2); SENS.res = Math.min(SENS.res, 0.75); SENS.cap = Math.min(SENS.cap, 30); }
 SENS.stress = false; /* stress mode is deliberately session-only; never auto-enable a huge load on startup */
 function applySettings() {
   camera.fov = SENS.fov; camera.updateProjectionMatrix();
